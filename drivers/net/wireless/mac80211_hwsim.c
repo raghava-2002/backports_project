@@ -2772,7 +2772,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	// want to know what is wiphy_net_set
 	//printk(KERN_DEBUG "Rathan wiphy_net_set: %p\n", wiphy_net_set);
 	// print the pointer of the net
-	printk(KERN_DEBUG "Rathan net: %p\n", *net);
+	printk(KERN_DEBUG "Rathan net: %p\n", net);
 	
 
 	data = hw->priv;
