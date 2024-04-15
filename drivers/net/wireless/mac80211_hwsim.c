@@ -2820,7 +2820,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		/* possible address clash is checked at hash table insertion */
 
 		//print the mac address of the radio given at the generation of radio
-		printk(KERN_DEBUG "Rathan mac address: %pM ,second address: %pM \n", data->addresses[0].addr, data->addresses[1].addr);
+		printk(KERN_DEBUG "Rathan Radio mac address: %pM ,second address: %pM \n", data->addresses[0].addr, data->addresses[1].addr);
 
 	} else {
 		memcpy(data->addresses[0].addr, param->perm_addr, ETH_ALEN);
