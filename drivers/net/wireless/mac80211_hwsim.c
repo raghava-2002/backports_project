@@ -2772,12 +2772,17 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	// want to know what is wiphy_net_set
 	//printk(KERN_DEBUG "Rathan wiphy_net_set: %p\n", wiphy_net_set);
 	// print the pointer of the net
-	printk(KERN_DEBUG "Rathan net: %p\n", net);
+	//printk(KERN_DEBUG "Rathan net: %p\n", net);
 	
 
 	data = hw->priv;
 	data->hw = hw;
 	
+	//Rathan prints the data 
+	//printk(KERN_DEBUG "Rathan data: %p\n", data);
+	
+
+
 	/* Rathan prints this line to know if it works or not
 	this function runs as many times as no of radios for mac80211_hwsim */
 	//printk(KERN_DEBUG "Rathan hw variable for fun: %p\n", hw);
@@ -2813,6 +2818,10 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		hw->wiphy->n_addresses = 2;
 		hw->wiphy->addresses = data->addresses;
 		/* possible address clash is checked at hash table insertion */
+
+		//print the mac address of the radio given at the generation of radio
+		printk(KERN_DEBUG "Rathan mac address: %pM ,second address: %pM \n", data->addresses[0].addr, data->addresses[1].addr);
+
 	} else {
 		memcpy(data->addresses[0].addr, param->perm_addr, ETH_ALEN);
 		/* compatibility with automatically generated mac addr */
