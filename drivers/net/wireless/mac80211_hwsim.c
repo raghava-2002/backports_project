@@ -2771,14 +2771,16 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 
 	// want to know what is wiphy_net_set
 	//printk(KERN_DEBUG "Rathan wiphy_net_set: %p\n", wiphy_net_set);
-
+	// print the pointer of the net
+	printk(KERN_DEBUG "Rathan net: %p\n", *net);
+	
 
 	data = hw->priv;
 	data->hw = hw;
 	
 	/* Rathan prints this line to know if it works or not
 	this function runs as many times as no of radios for mac80211_hwsim */
-	printk(KERN_DEBUG "Rathan hw variable for fun: %p\n", hw);
+	//printk(KERN_DEBUG "Rathan hw variable for fun: %p\n", hw);
 
 	data->dev = device_create(hwsim_class, NULL, 0, hw, "hwsim%d", idx);
 	if (IS_ERR(data->dev)) {
