@@ -189,18 +189,25 @@ static inline void hwsim_check_magic(struct ieee80211_vif *vif)
 	WARN(vp->magic != HWSIM_VIF_MAGIC,
 	     "Invalid VIF (%p) magic %#x, %pM, %d/%d\n",
 	     vif, vp->magic, vif->addr, vif->type, vif->p2p);
+
+	// Rathan prints the a line to know that the function is called
+	printk(KERN_INFO "Rathan: hwsim_check_magic called\n");
 }
 
 static inline void hwsim_set_magic(struct ieee80211_vif *vif)
 {
 	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
 	vp->magic = HWSIM_VIF_MAGIC;
+	// Rathan prints the a line to know that the function is called
+	printk(KERN_INFO "Rathan: hwsim_set_magic called\n");
 }
 
 static inline void hwsim_clear_magic(struct ieee80211_vif *vif)
 {
 	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
 	vp->magic = 0;
+	// Rathan prints the a line to know that the function is called
+	printk(KERN_INFO "Rathan: hwsim_clear_magic called\n");
 }
 
 struct hwsim_sta_priv {
@@ -213,18 +220,24 @@ static inline void hwsim_check_sta_magic(struct ieee80211_sta *sta)
 {
 	struct hwsim_sta_priv *sp = (void *)sta->drv_priv;
 	WARN_ON(sp->magic != HWSIM_STA_MAGIC);
+	// Rathan prints the a line to know that the function is called
+	printk(KERN_INFO "Rathan: hwsim_check_sta_magic called\n");
 }
 
 static inline void hwsim_set_sta_magic(struct ieee80211_sta *sta)
 {
 	struct hwsim_sta_priv *sp = (void *)sta->drv_priv;
 	sp->magic = HWSIM_STA_MAGIC;
+	// Rathan prints the a line to know that the function is called
+	printk(KERN_INFO "Rathan: hwsim_set_sta_magic called\n");
 }
 
 static inline void hwsim_clear_sta_magic(struct ieee80211_sta *sta)
 {
 	struct hwsim_sta_priv *sp = (void *)sta->drv_priv;
 	sp->magic = 0;
+	// Rathan prints the a line to know that the function is called
+	printk(KERN_INFO "Rathan: hwsim_clear_sta_magic called\n");
 }
 
 struct hwsim_chanctx_priv {
@@ -237,6 +250,8 @@ static inline void hwsim_check_chanctx_magic(struct ieee80211_chanctx_conf *c)
 {
 	struct hwsim_chanctx_priv *cp = (void *)c->drv_priv;
 	WARN_ON(cp->magic != HWSIM_CHANCTX_MAGIC);
+	// Rathan prints the a line to know that the function is called
+	printk(KERN_INFO "Rathan: hwsim_check_chanctx_magic called\n");
 }
 
 static inline void hwsim_set_chanctx_magic(struct ieee80211_chanctx_conf *c)
@@ -1045,6 +1060,15 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 	struct hwsim_tx_rate tx_attempts[IEEE80211_TX_MAX_RATES];
 	struct hwsim_tx_rate_flag tx_attempts_flags[IEEE80211_TX_MAX_RATES];
 	uintptr_t cookie;
+
+	
+	/* Print out frame information  Rathan  MAC addresses of the destination, source, and BSSID respectively*/
+    printk(KERN_DEBUG "hwsim Rathan: TX frame, addr1=%pM, addr2=%pM, addr3=%pM\n",
+           hdr->addr1, hdr->addr2, hdr->addr3);
+	
+	// Rathan print the a line to know that the function is called
+	printk(KERN_DEBUG "hwsim Rathan: TX frame\n");
+
 
 	if (data->ps != PS_DISABLED)
 		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
@@ -2820,7 +2844,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		/* possible address clash is checked at hash table insertion */
 
 		//print the mac address of the radio given at the generation of radio
-		printk(KERN_DEBUG "Rathan Radio mac address: %pM ,second address: %pM \n", data->addresses[0].addr, data->addresses[1].addr);
+		//printk(KERN_DEBUG "Rathan Radio mac address: %pM ,second address: %pM \n", data->addresses[0].addr, data->addresses[1].addr);
 
 	} else {
 		memcpy(data->addresses[0].addr, param->perm_addr, ETH_ALEN);
@@ -2841,6 +2865,8 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	if (param->iftypes & BIT(NL80211_IFTYPE_ADHOC)) {
 		data->if_limits[n_limits].max = 1;
 		data->if_limits[n_limits].types = BIT(NL80211_IFTYPE_ADHOC);
+		// to know the value of the NL80211_IFTYPE_ADHOC it is constant tells about adhoc mode
+		//printk(KERN_DEBUG "Rathan: ADHOC %d\n", NL80211_IFTYPE_ADHOC);
 		n_limits++;
 	}
 
@@ -2949,7 +2975,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	hw->chanctx_data_size = sizeof(struct hwsim_chanctx_priv);
 
 	memcpy(data->channels_2ghz, hwsim_channels_2ghz,
-		sizeof(hwsim_channels_2ghz));
+		sizeof(hwsim_channels_2ghz));	
 	memcpy(data->channels_5ghz, hwsim_channels_5ghz,
 		sizeof(hwsim_channels_5ghz));
 	memcpy(data->rates, hwsim_rates, sizeof(hwsim_rates));
