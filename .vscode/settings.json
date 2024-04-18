@@ -1,5 +1,8 @@
 {
     "files.associations": {
-        "hwsim": "c"
+        "hwsim": "c",
+        "array": "c",
+        "string": "c",
+        "string_view": "c"
     }
 }
