@@ -874,6 +874,10 @@ static void mac80211_hwsim_monitor_rx(struct ieee80211_hw *hw,
 				      struct sk_buff *tx_skb,
 				      struct ieee80211_channel *chan)
 {
+	// Define the original and new MAC addresses
+	u8 orig_addr[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x01, 0x00}; // Original MAC address
+	u8 new_addr[ETH_ALEN] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55}; // X MAC address
+	struct ieee80211_hdr *mac_hdr;
 	struct mac80211_hwsim_data *data = hw->priv;
 	struct sk_buff *skb;
 	struct hwsim_radiotap_hdr *hdr;
@@ -881,7 +885,41 @@ static void mac80211_hwsim_monitor_rx(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_skb);
 	struct ieee80211_rate *txrate = ieee80211_get_tx_rate(hw, info);
 
+	mac_hdr = (struct ieee80211_hdr *)(tx_skb->data + tx_skb->mac_len);
+	/*
+	struct ieee80211_hdr *mac_hdr;
+	mac_hdr = (struct ieee80211_hdr *) tx_skb->data;
+	*/
+	//
+	/*
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) tx_skb->data;
+    struct mac80211_hwsim_data *data = hw->priv;
+    u8 new_addr[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x01, 0x00}; // MAC address to check
 	//LOG_FUNC;
+
+	u8 new_addr[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x01, 0x00}; // MAC address to check
+
+    // Check if the source MAC address is 02:00:00:00:01:00
+    if (memcmp(hdr->addr2, new_addr, ETH_ALEN) == 0) {
+        // Change the source MAC address back to the station's MAC address
+        memcpy(hdr->addr2, data->station_addr, ETH_ALEN);
+    }
+*/
+	
+	/*
+	// Check if the source MAC address is X
+	if (memcmp(mac_hdr->addr2, new_addr, ETH_ALEN) == 0) {
+    	// Change the source MAC address back to the original MAC address
+    	memcpy(mac_hdr->addr2, orig_addr, ETH_ALEN);
+	}
+
+	// Check if the destination MAC address is X
+	if (memcmp(mac_hdr->addr1, new_addr, ETH_ALEN) == 0) {
+ 		// Change the destination MAC address back to the original MAC address
+    	memcpy(mac_hdr->addr1, orig_addr, ETH_ALEN);
+	}
+*/
+
 	if (WARN_ON(!txrate))
 		return;
 
@@ -917,6 +955,29 @@ static void mac80211_hwsim_monitor_rx(struct ieee80211_hw *hw,
 	skb->pkt_type = PACKET_OTHERHOST;
 	skb->protocol = htons(ETH_P_802_2);
 	memset(skb->cb, 0, sizeof(skb->cb));
+	/*
+	// Modify MAC addresses
+    if (memcmp(skb->mac_header, "\x02\x00\x00\x00\x01\x00", ETH_ALEN) == 0) {
+        memcpy(skb->mac_header, "\x00\x11\x22\x33\x44\x55", ETH_ALEN);
+    }
+    if (memcmp(skb->mac_header + ETH_ALEN, "\x02\x00\x00\x00\x01\x00", ETH_ALEN) == 0) {
+        memcpy(skb->mac_header + ETH_ALEN, your_new_mac_address, ETH_ALEN);
+    }
+	*/
+	// Check if the source MAC address is X
+	if (memcmp(mac_hdr->addr2, new_addr, ETH_ALEN) == 0) {
+    	// Change the source MAC address back to the original MAC address
+    	memcpy(mac_hdr->addr2, orig_addr, ETH_ALEN);
+		printk(KERN_DEBUG "Source MAC address changed function rx 1\n");
+	}
+
+	// Check if the destination MAC address is X
+	if (memcmp(mac_hdr->addr1, new_addr, ETH_ALEN) == 0) {
+ 		// Change the destination MAC address back to the original MAC address
+    	memcpy(mac_hdr->addr1, orig_addr, ETH_ALEN);
+		printk(KERN_DEBUG "Destination MAC address changed function rx 2\n");
+	}
+
 	netif_rx(skb);
 }
 
@@ -924,6 +985,8 @@ static void mac80211_hwsim_monitor_rx(struct ieee80211_hw *hw,
 static void mac80211_hwsim_monitor_ack(struct ieee80211_channel *chan,
 				       const u8 *addr)
 {
+	u8 orig_addr[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x01, 0x00}; // Original MAC address
+	u8 new_addr[ETH_ALEN] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55}; // X MAC address
 	struct sk_buff *skb;
 	struct hwsim_radiotap_ack_hdr *hdr;
 	u16 flags;
@@ -953,7 +1016,16 @@ static void mac80211_hwsim_monitor_ack(struct ieee80211_channel *chan,
 	hdr11->frame_control = cpu_to_le16(IEEE80211_FTYPE_CTL |
 					   IEEE80211_STYPE_ACK);
 	hdr11->duration_id = cpu_to_le16(0);
-	memcpy(hdr11->addr1, addr, ETH_ALEN);
+	//memcpy(hdr11->addr1, addr, ETH_ALEN);
+	if (memcmp(addr, orig_addr, ETH_ALEN) == 0) {
+        // If the original MAC address matches, change it to X
+        memcpy(hdr11->addr1, new_addr, ETH_ALEN);
+		printk(KERN_DEBUG "Source MAC address changed function ack 1\n");
+	} else {
+		// Otherwise, keep the original MAC address
+		memcpy(hdr11->addr1, addr, ETH_ALEN);
+		printk(KERN_DEBUG "Source MAC address changed function ack 2 usuall\n");
+    } 
 
 	skb->dev = hwsim_mon;
 	skb_reset_mac_header(skb);
@@ -1097,7 +1169,7 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 	struct hwsim_tx_rate_flag tx_attempts_flags[IEEE80211_TX_MAX_RATES];
 	uintptr_t cookie;
 
-	//LOG_FUNC;
+	LOG_FUNC;
 	/* Print out frame information  Rathan  MAC addresses of the destination, source, and BSSID respectively*/
     /*
 	printk(KERN_DEBUG "hwsim Rathan: TX frame, addr1=%pM, addr2=%pM, addr3=%pM\n",
@@ -1428,21 +1500,30 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 			      struct ieee80211_tx_control *control,
 			      struct sk_buff *skb)
 {
+	// Define the original and new MAC addresses
+	u8 orig_addr[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x01, 0x00}; // Original MAC address
+	u8 new_addr[ETH_ALEN] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55}; // X MAC address
+	struct ieee80211_hdr *mac_hdr;
 	struct mac80211_hwsim_data *data = hw->priv;
 	struct ieee80211_tx_info *txi = IEEE80211_SKB_CB(skb);
-	struct ieee80211_hdr *hdr = (void *)skb->data;
+	//struct ieee80211_hdr *hdr = (void *)skb->data;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_channel *channel;
+	//rathan wrote below line 
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	bool ack;
 	u32 _portid;
 
+	mac_hdr = (struct ieee80211_hdr *)(skb->data + skb->mac_len);
 	//LOG_FUNC;
 
 	/* Rathan wrote these lines to know from where to where the packet is transfering in the physical layer */
+	
+	/*
 	printk(KERN_DEBUG "Transmitting packet from %pM to %pM on interface %s\n",
        hdr->addr2, hdr->addr1, wiphy_name(hw->wiphy));
+	*/
 	
-
 	/* Rathan wrote these lines to know the packet length
 	printk(KERN_DEBUG "Packet length is %d\n", skb->len);
 	*/
@@ -1452,6 +1533,7 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 	*/
 
 	/* Rathan wrote these lines to know the packet protocol
+	
 	u16 fc = le16_to_cpu(hdr->frame_control);
     u8 type = (fc & IEEE80211_FCTL_FTYPE) >> 2;
     u8 subtype = (fc & IEEE80211_FCTL_STYPE) >> 4;
@@ -1459,6 +1541,61 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
     printk(KERN_DEBUG "Transmitting packet from %pM to %pM on interface %s, type: %u, subtype: %u\n",
        hdr->addr2, hdr->addr1, wiphy_name(hw->wiphy), type, subtype);
 	*/
+
+	/* Rathan wrote these lines to know the packet protocol
+	printk(KERN_DEBUG "Packet protocol is %d\n", skb->protocol);
+	*/
+	
+	//i want to debug the packet content to print the crypto graphic key values
+	//printk(KERN_DEBUG "Packet content is %*ph\n", skb->len, skb->data);
+
+	/*
+	u16 fc = le16_to_cpu(hdr->frame_control);
+	u8 type = (fc & IEEE80211_FCTL_FTYPE) >> 2;
+	u8 subtype = (fc & IEEE80211_FCTL_STYPE) >> 4;
+
+	printk(KERN_DEBUG "Frame control: %04x, type: %u, subtype: %u\n", fc, type, subtype);
+	printk(KERN_DEBUG "Duration: %u\n", le16_to_cpu(hdr->duration_id));
+	printk(KERN_DEBUG "Address 1 to: %pM\n", hdr->addr1);
+	printk(KERN_DEBUG "Address 2 from : %pM\n", hdr->addr2);
+	printk(KERN_DEBUG "Address 3: %pM\n", hdr->addr3);
+    */
+
+	// Define the original and new MAC addresses
+	//u8 orig_addr[ETH_ALEN] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55}; // replace with x
+	/*
+	// Define the new MAC address
+	u8 new_addr[ETH_ALEN] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x56}; // replace with y
+
+	printk(KERN_DEBUG "Transmitting packet from %pM to %pM on interface %s\n",
+       hdr->addr2, hdr->addr1, wiphy_name(hw->wiphy));
+
+	// Check if the destination MAC address is the station's MAC address
+	if (is_station_mac_address(hdr->addr1)) {
+    	// Change the destination MAC address to y
+    	memcpy(hdr->addr1, new_addr, ETH_ALEN);
+	}
+
+	printk(KERN_DEBUG "Transmitting packet from %pM to %pM on interface %s\n",
+       hdr->addr2, hdr->addr1, wiphy_name(hw->wiphy));
+
+	*/
+
+
+	// Check if the source MAC address is the original MAC address
+	if (memcmp(mac_hdr->addr2, orig_addr, ETH_ALEN) == 0) {
+    	// Change the source MAC address to X
+    	memcpy(mac_hdr->addr2, new_addr, ETH_ALEN);
+    	printk(KERN_DEBUG "Source MAC address changed to %pM in function tx 1\n", mac_hdr->addr2);
+	}
+
+	// Check if the destination MAC address is the original MAC address
+	if (memcmp(mac_hdr->addr1, orig_addr, ETH_ALEN) == 0) {
+    	// Change the destination MAC address to X
+    	memcpy(mac_hdr->addr1, new_addr, ETH_ALEN);
+    	printk(KERN_DEBUG "Destination MAC address changed to %pM in function tx 2\n", mac_hdr->addr1);
+	}
+
 
 	if (WARN_ON(skb->len < 10)) {
 		/* Should not happen; just a sanity check for addr1 use */
@@ -1519,6 +1656,10 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 	/* wmediumd mode check */
 	_portid = READ_ONCE(data->wmediumd);
 
+	//rathan 
+
+
+
 	if (_portid)
 		return mac80211_hwsim_tx_frame_nl(hw, skb, _portid);
 
@@ -1541,7 +1682,16 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 	ieee80211_tx_status_irqsafe(hw, skb);
 }
 
+/*
+//rathan wrote this structure to store the station's MAC address
+struct mac80211_hwsim_data {
+    // Other fields...
+	struct list_head list; // Add this line
+    struct ieee80211_hw *hw; // Add this line
 
+    u8 station_addr[ETH_ALEN]; // New field to store the station's MAC address
+};
+*/
 static int mac80211_hwsim_start(struct ieee80211_hw *hw)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
