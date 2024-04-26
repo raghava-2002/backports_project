@@ -1590,6 +1590,7 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 	}
 
 	// Check if the destination MAC address is the original MAC address
+	
 	if (memcmp(mac_hdr->addr1, orig_addr, ETH_ALEN) == 0) {
     	// Change the destination MAC address to X
     	memcpy(mac_hdr->addr1, new_addr, ETH_ALEN);
