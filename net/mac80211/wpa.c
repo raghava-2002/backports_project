@@ -25,6 +25,16 @@
 #include "aes_gcm.h"
 #include "wpa.h"
 
+/*
+//#include "my_functions.h"
+#include <linux/crypto.h>
+#include <crypto/hash.h>
+#include <linux/scatterlist.h>
+void generate_identifier(unsigned char *nonce1, unsigned char *nonce2, unsigned char *addr, struct ieee80211_key *key, unsigned char *outputBuffer);
+*/
+//create a macro function to print the name of the function and with time stamp
+#define PRINT_FUNC_NAME printk(KERN_INFO "R Function: %s\n", __func__);
+
 ieee80211_tx_result
 ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 {
@@ -414,6 +424,15 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb,
 	u64 pn64;
 	u8 aad[CCM_AAD_LEN];
 	u8 b_0[AES_BLOCK_SIZE];
+	/*
+	#define NONCE1_LENGTH sizeof(nonce1)
+	#define NONCE2_LENGTH sizeof(nonce2)
+	#define ADDR_LENGTH sizeof(addr)
+	#define SHA256_DIGEST_LENGTH 32
+	unsigned char outputBuffer[SHA256_DIGEST_LENGTH*2 + 1];
+	unsigned char nonce1[] = {32};
+	unsigned char nonce2[] = {42};
+	*/
 
 	if (info->control.hw_key &&
 	    !(info->control.hw_key->flags & IEEE80211_KEY_FLAG_GENERATE_IV) &&
@@ -428,6 +447,36 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb,
 		return 0;
 	}
 
+	//copy the contents of the pointer *key to a variable to printout on kernal log
+	
+	/*
+	printk(KERN_DEBUG "Key Length: %d\n", key->conf.keylen);
+	//print the key index
+	printk(KERN_DEBUG "Key Index: %d\n", key->conf.keyidx);
+	printk(KERN_DEBUG "Key: %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		key->conf.key[0], key->conf.key[1], key->conf.key[2], key->conf.key[3],
+		key->conf.key[4], key->conf.key[5], key->conf.key[6], key->conf.key[7],
+		key->conf.key[8], key->conf.key[9], key->conf.key[10], key->conf.key[11],
+		key->conf.key[12], key->conf.key[13], key->conf.key[14], key->conf.key[15]);
+	printk(KERN_DEBUG "HDR Address: %p\n", hdr);
+	printk(KERN_DEBUG "Frame Control: %04x\n", hdr->frame_control);
+	printk(KERN_DEBUG "Duration ID: %04x\n", hdr->duration_id);
+	//hdr->addr1 is the destination address
+	//hdr->addr2 is the source address
+	//hdr->addr3 is the BSSID
+	printk(KERN_DEBUG "Address 1 destination address: %pM\n", hdr->addr1);
+	printk(KERN_DEBUG "Address 2 source address: %pM\n", hdr->addr2);
+	printk(KERN_DEBUG "Address 3 BSSID: %pM\n", hdr->addr3);
+	printk(KERN_DEBUG "Sequence Control: %04x\n", hdr->seq_ctrl);
+	*/
+
+	/*
+	generate_identifier(nonce1, nonce2, hdr->addr2, key, outputBuffer);
+	//print the output buffer
+	printk(KERN_DEBUG "Output Buffer: %s\n", outputBuffer);
+	*/
+	
+	
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 	len = skb->len - hdrlen;
 
@@ -472,6 +521,47 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb,
 					 skb_put(skb, mic_len));
 }
 
+
+/*
+//function to generate some random mac address
+void generate_identifier(unsigned char *nonce1, unsigned char *nonce2, unsigned char *addr, struct ieee80211_key *key, unsigned char *outputBuffer) {
+	struct scatterlist sg[4];
+	struct crypto_ahash *tfm;
+	struct ahash_request *req;
+	unsigned char data[SHA256_DIGEST_LENGTH];
+	int i;
+
+	sg_init_one(&sg[0], nonce1, sizeof(nonce1));
+	sg_init_one(&sg[1], nonce2, sizeof(nonce2));
+	sg_init_one(&sg[2], addr, sizeof(addr));
+	sg_init_one(&sg[3], key->conf.key, key->conf.keylen);
+
+	tfm = crypto_alloc_ahash("sha256", 0, CRYPTO_ALG_ASYNC); // Initialize tfm here
+    if (IS_ERR(tfm)) {
+        printk(KERN_ERR "Failed to allocate ahash transformation\n");
+        return;
+    }
+	req = ahash_request_alloc(tfm, GFP_KERNEL);
+	if (!req)
+		return;
+
+	ahash_request_set_crypt(req, sg, data, sizeof(nonce1) + sizeof(nonce2) + sizeof(addr) + key->conf.keylen);
+
+	crypto_ahash_digest(req);
+	ahash_request_free(req);
+	crypto_free_ahash(tfm);
+
+	for(i = 0; i < 6; ++i) {
+		outputBuffer[i] = data[i];
+	}
+	// Set the second bit of the first byte to zero to make it a unicast address
+	outputBuffer[0] &= ~(1 << 1);
+
+	// Set the first bit of the first byte to zero to make it a globally unique address
+	outputBuffer[0] &= ~(1 << 0);
+}
+
+*/
 
 ieee80211_tx_result
 ieee80211_crypto_ccmp_encrypt(struct ieee80211_tx_data *tx,

@@ -1437,10 +1437,9 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 	u32 _portid;
 
 	//LOG_FUNC;
-
+	
 	/* Rathan wrote these lines to know from where to where the packet is transfering in the physical layer */
-	printk(KERN_DEBUG "Transmitting packet from %pM to %pM on interface %s\n",
-       hdr->addr2, hdr->addr1, wiphy_name(hw->wiphy));
+	//printk(KERN_DEBUG "Transmitting packet from %pM to %pM on interface %s\n", hdr->addr2, hdr->addr1, wiphy_name(hw->wiphy));
 	
 
 	/* Rathan wrote these lines to know the packet length
