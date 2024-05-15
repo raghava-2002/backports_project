@@ -36,12 +36,32 @@
 #include "wme.h"
 #include "rate.h"
 
-/* misc utils */
+ /* misc utils */
+#include <linux/crypto.h>
+#include <linux/scatterlist.h>
+#define MAC_ADDRESS_LENGTH 6 
 
+long long int interval_tp; // epoch interval
+int epoch_flag = 0;
+// char *output_mac;
+
+static void epoch_interval(void); // function declaration
+void test_fun(struct sta_info *sta, int flag_addr, long long current_tp);
+void generate_mac_address(struct sta_info *sta, int flag_addr, long long current_tp);
+
+#define LOG_FUNC printk(KERN_DEBUG "Rathan: %s function called\n", __func__)
+
+void epoch_interval(void){
+	if (!epoch_flag){
+		interval_tp = (ktime_get_real_seconds() / 5);
+		epoch_flag = 1;
+	}
+}
 static inline void ieee80211_tx_stats(struct net_device *dev, u32 len)
 {
 	struct pcpu_sw_netstats *tstats = this_cpu_ptr(netdev_tstats(dev));
 
+	//LOG_FUNC;
 	u64_stats_update_begin(&tstats->syncp);
 	tstats->tx_packets++;
 	tstats->tx_bytes += len;
@@ -61,6 +81,7 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	u32 rate_flags = 0;
 
+	//LOG_FUNC;
 	/* assume HW handles this */
 	if (tx->rate.flags & (IEEE80211_TX_RC_MCS | IEEE80211_TX_RC_VHT_MCS))
 		return 0;
@@ -213,6 +234,7 @@ ieee80211_tx_h_dynamic_ps(struct ieee80211_tx_data *tx)
 	struct ieee80211_if_managed *ifmgd;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 
+	//LOG_FUNC;
 	/* driver doesn't support power save */
 	if (!ieee80211_hw_check(&local->hw, SUPPORTS_PS))
 		return TX_CONTINUE;
@@ -291,6 +313,7 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 	bool assoc = false;
 
+	//LOG_FUNC;
 	if (unlikely(info->flags & IEEE80211_TX_CTL_INJECTED))
 		return TX_CONTINUE;
 
@@ -357,6 +380,7 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
 
+	//LOG_FUNC;
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		struct ps_data *ps;
 
@@ -404,6 +428,7 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
 	struct ps_data *ps;
 
+	//LOG_FUNC;
 	/*
 	 * broadcast/multicast frame
 	 *
@@ -465,6 +490,7 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 static int ieee80211_use_mfp(__le16 fc, struct sta_info *sta,
 			     struct sk_buff *skb)
 {
+	//LOG_FUNC;
 	if (!ieee80211_is_mgmt(fc))
 		return 0;
 
@@ -485,6 +511,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
 	struct ieee80211_local *local = tx->local;
 
+	//LOG_FUNC;
 	if (unlikely(!sta))
 		return TX_CONTINUE;
 
@@ -559,6 +586,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_ps_buf(struct ieee80211_tx_data *tx)
 {
+	//LOG_FUNC;
 	if (unlikely(tx->flags & IEEE80211_TX_PS_BUFFERED))
 		return TX_CONTINUE;
 
@@ -573,6 +601,7 @@ ieee80211_tx_h_check_control_port_protocol(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 
+	//LOG_FUNC;
 	if (unlikely(tx->sdata->control_port_protocol == tx->skb->protocol)) {
 		if (tx->sdata->control_port_no_encrypt)
 			info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
@@ -590,30 +619,56 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
 
+	//LOG_FUNC;
+
 	if (unlikely(info->flags & IEEE80211_TX_INTFL_DONT_ENCRYPT)) {
 		tx->key = NULL;
+		//printk(KERN_DEBUG "Rathan: tx->key = NULL no encryption\n");
 		return TX_CONTINUE;
 	}
 
 	if (tx->sta &&
-	    (key = rcu_dereference(tx->sta->ptk[tx->sta->ptk_idx])))
+	    (key = rcu_dereference(tx->sta->ptk[tx->sta->ptk_idx]))){
 		tx->key = key;
+		/*
+		printk(KERN_DEBUG "Rathan: ptk location address = %p", tx->key);
+		printk(KERN_DEBUG "Rathan: ptk content value = %*ph", tx->key->conf.keylen, tx->key->conf.key);
+		//print the station name or idx always set to 0 because no ptk is derived after that here
+		//printk(KERN_DEBUG "Rathan: ptk idx %d\n", tx->sta->ptk_idx);
+		//printk(KERN_DEBUG "Rathan: [%lld]tx sta name = %pM\n", ktime_get_real_seconds(), tx->key->sta->addr);
+		//printk(KERN_DEBUG "Rathan: tx ack frame id = %u\n", info->ack_frame_id);
+		printk(KERN_DEBUG "Rathan: ptk length in bytes = %d", tx->key->conf.keylen);
+		//printk(KERN_DEBUG "Rathan: ptk cipher  suite = %u", tx->key->conf.cipher);
+		*/
+		//print frame control
+		//printk(KERN_DEBUG "Rathan: frame control = %04x\n", hdr->frame_control);
+		}
 	else if (ieee80211_is_group_privacy_action(tx->skb) &&
-		(key = rcu_dereference(tx->sdata->default_multicast_key)))
+		(key = rcu_dereference(tx->sdata->default_multicast_key))){
 		tx->key = key;
+		//printk(KERN_DEBUG "Rathan: multicast key is used  %p", tx->key);
+		}
 	else if (ieee80211_is_mgmt(hdr->frame_control) &&
 		 is_multicast_ether_addr(hdr->addr1) &&
 		 ieee80211_is_robust_mgmt_frame(tx->skb) &&
-		 (key = rcu_dereference(tx->sdata->default_mgmt_key)))
+		 (key = rcu_dereference(tx->sdata->default_mgmt_key))){
 		tx->key = key;
+		//printk(KERN_DEBUG "Rathan: mgmt frame so mgmt key is used  %p", tx->key);
+		}
 	else if (is_multicast_ether_addr(hdr->addr1) &&
-		 (key = rcu_dereference(tx->sdata->default_multicast_key)))
+		 (key = rcu_dereference(tx->sdata->default_multicast_key))){
 		tx->key = key;
-	else if (!is_multicast_ether_addr(hdr->addr1) &&
-		 (key = rcu_dereference(tx->sdata->default_unicast_key)))
+		//printk(KERN_DEBUG "Rathan: multicast key is used  %p", tx->key);
+		}
+	else if (!is_multicast_ether_addr(hdr->addr1) && 
+		 (key = rcu_dereference(tx->sdata->default_unicast_key))){
 		tx->key = key;
-	else
+		//printk(KERN_DEBUG "Rathan: unicast key is used  %p", tx->key);
+		}
+	else {
 		tx->key = NULL;
+		//printk(KERN_DEBUG "Rathan: nothing worked tx->key = NULL\n");
+	}
 
 	if (tx->key) {
 		bool skip_hw = false;
@@ -659,6 +714,7 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 			info->control.hw_key = &tx->key->conf;
 	} else if (!ieee80211_is_mgmt(hdr->frame_control) && tx->sta &&
 		   test_sta_flag(tx->sta, WLAN_STA_USES_ENCRYPTION)) {
+		//printk(KERN_DEBUG "Rathan: no key found but sta uses encryption\n");
 		return TX_DROP;
 	}
 
@@ -676,6 +732,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	struct ieee80211_sta_rates *ratetbl = NULL;
 	bool assoc = false;
 
+	//LOG_FUNC;
 	memset(&txrc, 0, sizeof(txrc));
 
 	sband = tx->local->hw.wiphy->bands[info->band];
@@ -794,6 +851,7 @@ static __le16 ieee80211_tx_next_seq(struct sta_info *sta, int tid)
 	u16 *seq = &sta->tid_seq[tid];
 	__le16 ret = cpu_to_le16(*seq);
 
+	//LOG_FUNC;
 	/* Increase the sequence number. */
 	*seq = (*seq + 0x10) & IEEE80211_SCTL_SEQ;
 
@@ -807,6 +865,7 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
 	int tid;
 
+	//LOG_FUNC;
 	/*
 	 * Packet injection may want to control the sequence
 	 * number, if we have no matching interface then we
@@ -839,6 +898,7 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 		/* for pure STA mode without beacons, we can do it */
 		hdr->seq_ctrl = cpu_to_le16(tx->sdata->sequence_number);
 		tx->sdata->sequence_number += 0x10;
+		//rathan sequence number is here
 		if (tx->sta)
 			tx->sta->tx_stats.msdu[IEEE80211_NUM_TIDS]++;
 		return TX_CONTINUE;
@@ -872,6 +932,7 @@ static int ieee80211_fragment(struct ieee80211_tx_data *tx,
 	int pos = hdrlen + per_fragm;
 	int rem = skb->len - hdrlen - per_fragm;
 
+	//LOG_FUNC;
 	if (WARN_ON(rem < 0))
 		return -EINVAL;
 
@@ -931,6 +992,7 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 	int hdrlen;
 	int fragnum;
 
+	//LOG_FUNC;
 	/* no matter what happens, tx->skb moves to tx->skbs */
 	__skb_queue_tail(&tx->skbs, skb);
 	tx->skb = NULL;
@@ -1002,6 +1064,7 @@ ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
 	struct sk_buff *skb;
 	int ac = -1;
 
+	//LOG_FUNC;
 	if (!tx->sta)
 		return TX_CONTINUE;
 
@@ -1018,6 +1081,83 @@ ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
 static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 {
+	//LOG_FUNC;
+ 	//struct sk_buff *skb;
+	//struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	
+
+	/* if (!tx) {
+		printk(KERN_DEBUG "Rathan: test1");
+	} else {
+		printk(KERN_DEBUG "Rathan: test2");
+	}
+
+	if (!tx->skb) {
+		printk(KERN_DEBUG "Rathan: test3");
+	} else {
+		printk(KERN_DEBUG "Rathan: test4");
+	}
+ */
+	//generate_mac_address(tx, 1, current_tp);
+
+	//test_fun(tx, 1, current_tp);
+
+	// print skb->data
+	//printk(KERN_DEBUG "Rathan: skb->data %*ph", skb->len, skb->data);
+
+	//printk(KERN_DEBUG "Rathan: tx key %*ph", tx->key->conf.keylen, tx->key->conf.key);
+	/*
+	
+	//Actual mac address randomizaaation logic starts here
+	if(tx->sdata->vif.type == NL80211_IFTYPE_AP){
+		printk(KERN_DEBUG "Rathan: AP mode,\n");
+		
+		if (interval_tp != current_tp){
+			printk(KERN_DEBUG "Rathan: generate new mac address");
+			interval_tp = current_tp;
+			//use function generate_mac_address input as hdr->addr1, tx->key, current_tp
+			//generate_mac_address(hdr->addr1, tx->key->conf.key, current_tp);
+			printk(KERN_DEBUG "Rathan: output_mac %s", output_mac);
+			//update in the table with new mac address
+
+		}
+		else{
+			printk(KERN_DEBUG "Rathan: use old period mac address");
+		}
+		//change RX and DA mac address with new randomized mac address
+		
+		
+	}
+	else{
+		printk(KERN_DEBUG "Rathan: STA mode\n");
+
+		if (interval_tp != current_tp){
+			printk(KERN_DEBUG "Rathan: generate new mac address");
+			interval_tp = current_tp;
+			//use function generate_mac_address input as hdr->addr2, tx->key, current_tp
+			//generate_mac_address(hdr->addr2, tx->key->conf.key, current_tp);
+			printk(KERN_DEBUG "Rathan: output_mac %s", output_mac);
+			//update in the table with new mac address
+		}
+		else{
+			printk(KERN_DEBUG "Rathan: use old period mac address");
+		}
+		//change TX and SA mac address with new randomized mac address
+	}
+
+	*/
+	// printk(KERN_DEBUG "Rathan: interval_tp %lld", interval_tp);
+	// printk(KERN_DEBUG "Rathan: current_tp %lld", current_tp);
+
+	
+	// if (interval_tp != current_tp){
+	// 	printk(KERN_DEBUG "Rathan: generate new mac address");
+	// 	interval_tp = current_tp;
+	// }
+	// else{
+	// 	printk(KERN_DEBUG "Rathan: use old period mac address");
+	// }
+	
 	if (!tx->key)
 		return TX_CONTINUE;
 
@@ -1050,6 +1190,78 @@ ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 	return TX_DROP;
 }
 
+//function to create randomized mac address mac address
+
+//void generate_mac_address(struct ieee80211_tx_data *tx, int flag_addr, long long int current_tp) {
+
+
+/* void generate_mac_address(struct ieee80211_tx_data *tx,int flag_addr, long long int current_tp) {
+	struct crypto_shash *shash;
+	struct shash_desc *shash_desc;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
+	char data[MAC_ADDRESS_LENGTH + 16 + sizeof(current_tp)];  // Buffer for the data to be hashed
+	unsigned char hash[20];  // Buffer for the hash
+	//char *output_mac = kmalloc((MAC_ADDRESS_LENGTH * 3) + 1, GFP_KERNEL);  // Buffer for the output MAC address
+	int i;
+
+	
+	// Initialize the crypto hash
+	shash = crypto_alloc_shash("sha1", 0, 0);
+	if (IS_ERR(shash)) {
+		printk(KERN_ERR "Failed to allocate crypto hash\n");
+		return;
+	}
+
+	shash_desc = kmalloc(sizeof(struct shash_desc) + crypto_shash_descsize(shash), GFP_KERNEL);
+	if (!shash_desc) {
+		printk(KERN_ERR "Failed to allocate shash_desc\n");
+		crypto_free_shash(shash);
+		return;
+	}
+
+	shash_desc->tfm = shash;
+
+	// Concatenate the inputs
+	sprintf(data, "%pM%*ph%lld", hdr->addr1, tx->key->conf.keylen, tx->key->conf.key, current_tp);
+
+	// Compute the hash
+	crypto_shash_digest(shash_desc, data, strlen(data), hash);
+
+	// Adjust the first byte of the hash to make it a valid MAC address
+	hash[0] = (hash[0] & 0xFC) | 0x02;  // Set bit-0 to 0 and bit-1 to 1
+
+	printk(KERN_DEBUG "Generated MAC address: ");
+	// Use the first 6 bytes of the hash as the MAC address
+	for (i = 0; i < MAC_ADDRESS_LENGTH; i++) {
+		printk(KERN_DEBUG "%02x:", hash[i]);
+	}
+	// Clean up
+	kfree(shash_desc);
+	crypto_free_shash(shash);
+} */
+
+
+/* void test_fun(struct ieee80211_tx_data *tx, int flag_addr, long long current_tp)
+{
+	struct sk_buff *skb = tx->skb;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *hdr = (void *)skb->data;
+
+	printk(KERN_DEBUG "Rathan: test function\n");
+	if (flag_addr == 1){
+		printk(KERN_DEBUG "Rathan: addr1 %pM", hdr->addr1);
+	}
+	else{
+		printk(KERN_DEBUG "Rathan: addr2 %pM", hdr->addr2);
+	}
+
+	printk(KERN_DEBUG "Rathan: current_tp %lld", current_tp);
+	return;
+} */
+
+
+
+
 static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_calculate_duration(struct ieee80211_tx_data *tx)
 {
@@ -1058,6 +1270,7 @@ ieee80211_tx_h_calculate_duration(struct ieee80211_tx_data *tx)
 	int next_len;
 	bool group_addr;
 
+	//LOG_FUNC;
 	skb_queue_walk(&tx->skbs, skb) {
 		hdr = (void *) skb->data;
 		if (unlikely(ieee80211_is_pspoll(hdr->frame_control)))
@@ -1088,6 +1301,7 @@ static bool ieee80211_tx_prep_agg(struct ieee80211_tx_data *tx,
 	bool reset_agg_timer = false;
 	struct sk_buff *purge_skb = NULL;
 
+	//LOG_FUNC;
 	if (test_bit(HT_AGG_STATE_OPERATIONAL, &tid_tx->state)) {
 		info->flags |= IEEE80211_TX_CTL_AMPDU;
 		reset_agg_timer = true;
@@ -1166,6 +1380,7 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	int tid;
 
+	//LOG_FUNC;
 	memset(tx, 0, sizeof(*tx));
 	tx->skb = skb;
 	tx->local = local;
@@ -1252,6 +1467,7 @@ static struct txq_info *ieee80211_get_txq(struct ieee80211_local *local,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_txq *txq = NULL;
 
+	//LOG_FUNC;
 	if ((info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) ||
 	    (info->control.flags & IEEE80211_TX_CTRL_PS_RESPONSE))
 		return NULL;
@@ -1286,11 +1502,13 @@ static struct txq_info *ieee80211_get_txq(struct ieee80211_local *local,
 
 static void ieee80211_set_skb_enqueue_time(struct sk_buff *skb)
 {
+	//LOG_FUNC;
 	IEEE80211_SKB_CB(skb)->control.enqueue_time = codel_get_time();
 }
 
 static u32 codel_skb_len_func(const struct sk_buff *skb)
 {
+	//LOG_FUNC;
 	return skb->len;
 }
 
@@ -1298,6 +1516,7 @@ static codel_time_t codel_skb_time_func(const struct sk_buff *skb)
 {
 	const struct ieee80211_tx_info *info;
 
+	//LOG_FUNC;
 	info = (const struct ieee80211_tx_info *)skb->cb;
 	return info->control.enqueue_time;
 }
@@ -1310,6 +1529,7 @@ static struct sk_buff *codel_dequeue_func(struct codel_vars *cvars,
 	struct fq *fq;
 	struct fq_flow *flow;
 
+	//LOG_FUNC;
 	txqi = ctx;
 	local = vif_to_sdata(txqi->txq.vif)->local;
 	fq = &local->fq;
@@ -1329,6 +1549,7 @@ static void codel_drop_func(struct sk_buff *skb,
 	struct ieee80211_hw *hw;
 	struct txq_info *txqi;
 
+	//LOG_FUNC;
 	txqi = ctx;
 	local = vif_to_sdata(txqi->txq.vif)->local;
 	hw = &local->hw;
@@ -1346,6 +1567,7 @@ static struct sk_buff *fq_tin_dequeue_func(struct fq *fq,
 	struct codel_params *cparams;
 	struct codel_stats *cstats;
 
+	//LOG_FUNC;
 	local = container_of(fq, struct ieee80211_local, fq);
 	txqi = container_of(tin, struct txq_info, tin);
 	cstats = &txqi->cstats;
@@ -1381,6 +1603,7 @@ static void fq_skb_free_func(struct fq *fq,
 {
 	struct ieee80211_local *local;
 
+	//LOG_FUNC;
 	local = container_of(fq, struct ieee80211_local, fq);
 	ieee80211_free_txskb(&local->hw, skb);
 }
@@ -1392,6 +1615,7 @@ static struct fq_flow *fq_flow_get_default_func(struct fq *fq,
 {
 	struct txq_info *txqi;
 
+	//LOG_FUNC;
 	txqi = container_of(tin, struct txq_info, tin);
 	return &txqi->def_flow;
 }
@@ -1404,6 +1628,7 @@ static void ieee80211_txq_enqueue(struct ieee80211_local *local,
 	struct fq_tin *tin = &txqi->tin;
 	u32 flow_idx = fq_flow_idx(fq, skb);
 
+	//LOG_FUNC;
 	ieee80211_set_skb_enqueue_time(skb);
 
 	spin_lock_bh(&fq->lock);
@@ -1419,6 +1644,7 @@ static bool fq_vlan_filter_func(struct fq *fq, struct fq_tin *tin,
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
+	//LOG_FUNC;
 	return info->control.vif == data;
 }
 
@@ -1430,6 +1656,7 @@ void ieee80211_txq_remove_vlan(struct ieee80211_local *local,
 	struct fq_tin *tin;
 	struct ieee80211_sub_if_data *ap;
 
+	//LOG_FUNC;
 	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_AP_VLAN))
 		return;
 
@@ -1451,6 +1678,7 @@ void ieee80211_txq_init(struct ieee80211_sub_if_data *sdata,
 			struct sta_info *sta,
 			struct txq_info *txqi, int tid)
 {
+	//LOG_FUNC;
 	fq_tin_init(&txqi->tin);
 	fq_flow_init(&txqi->def_flow);
 	codel_vars_init(&txqi->def_cvars);
@@ -1495,6 +1723,7 @@ void ieee80211_txq_purge(struct ieee80211_local *local,
 	struct fq *fq = &local->fq;
 	struct fq_tin *tin = &txqi->tin;
 
+	//LOG_FUNC;
 	spin_lock_bh(&fq->lock);
 	fq_tin_reset(fq, tin, fq_skb_free_func);
 	ieee80211_purge_tx_queue(&local->hw, &txqi->frags);
@@ -1507,6 +1736,7 @@ void ieee80211_txq_purge(struct ieee80211_local *local,
 
 void ieee80211_txq_set_params(struct ieee80211_local *local)
 {
+	//LOG_FUNC;
 	if (local->hw.wiphy->txq_limit)
 		local->fq.limit = local->hw.wiphy->txq_limit;
 	else
@@ -1531,6 +1761,8 @@ int ieee80211_txq_setup_flows(struct ieee80211_local *local)
 	bool supp_vht = false;
 	enum nl80211_band band;
 
+	//LOG_FUNC;
+	epoch_interval();
 	if (!local->ops->wake_tx_queue)
 		return 0;
 
@@ -1581,6 +1813,7 @@ void ieee80211_txq_teardown_flows(struct ieee80211_local *local)
 {
 	struct fq *fq = &local->fq;
 
+	//LOG_FUNC;
 	if (!local->ops->wake_tx_queue)
 		return;
 
@@ -1600,6 +1833,7 @@ static bool ieee80211_queue_skb(struct ieee80211_local *local,
 	struct ieee80211_vif *vif;
 	struct txq_info *txqi;
 
+	//LOG_FUNC;
 	if (!local->ops->wake_tx_queue ||
 	    sdata->vif.type == NL80211_IFTYPE_MONITOR)
 		return false;
@@ -1631,10 +1865,48 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 	struct sk_buff *skb, *tmp;
 	unsigned long flags;
 
+	/* if(!vif) {
+		printk(KERN_DEBUG "Rathan: vif is NULL\n");
+	}else{
+		printk(KERN_DEBUG "Rathan: vif is not NULL\n");
+	} */
+/* 	if(!skb){
+		printk(KERN_DEBUG "Rathan: skb is NULL\n");
+	}else{
+		printk(KERN_DEBUG "Rathan: skb is not NULL\n");
+	} */
+	/* if(!local){
+		printk(KERN_DEBUG "Rathan: local is NULL\n");
+	}else{
+		printk(KERN_DEBUG "Rathan: local is not NULL\n");
+	} */
+	//LOG_FUNC;
 	skb_queue_walk_safe(skbs, skb, tmp) {
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 		int q = info->hw_queue;
 
+	/* if(!info){
+		printk(KERN_DEBUG "Rathan: info is NULL\n");
+	}else{
+		printk(KERN_DEBUG "Rathan: info is not NULL\n");
+	}
+	printk(KERN_DEBUG "Rathan: hw queue %d\n", q);
+    */
+	
+    /* if (info->control.hw_key != NULL) {
+    	// Printing information about the hardware key
+        printk(KERN_DEBUG "Rathan: key is %d ", info->control.hw_key->keylen);
+    } else {
+        printk(KERN_DEBUG "Rathan: No hardware key associated.");
+    } */
+
+    //printk(KERN_DEBUG "Rathan: key is %*ph ", info->control.hw_key->keylen, info->control.hw_key->key);
+
+	/* if (!sta){
+		printk(KERN_DEBUG "Rathan: sta is NULL\n");
+	}else{
+		printk(KERN_DEBUG "Rathan: sta is not NULL\n");
+	} */ 
 #ifdef CPTCFG_MAC80211_VERBOSE_DEBUG
 		if (WARN_ON_ONCE(q >= local->hw.queues)) {
 			__skb_unlink(skb, skbs);
@@ -1688,7 +1960,7 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 		control.sta = sta;
 
 		__skb_unlink(skb, skbs);
-		drv_tx(local, &control, skb);
+		drv_tx(local, &control, skb); // responsible for transmitting the packet for transmission of the packet
 	}
 
 	return true;
@@ -1696,6 +1968,11 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 
 /*
  * Returns false if the frame couldn't be transmitted but was queued instead.
+
+Finally, the function calls ieee80211_tx_frags to transmit the network packets, 
+triggers an LED event, checks if the skbs queue is empty, 
+and returns the result of the transmission.
+ 
  */
 static bool __ieee80211_tx(struct ieee80211_local *local,
 			   struct sk_buff_head *skbs, int led_len,
@@ -1706,14 +1983,45 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	struct ieee80211_vif *vif;
 	struct ieee80211_sta *pubsta;
 	struct sk_buff *skb;
+	//struct ieee80211_key *key;
 	bool result = true;
 	__le16 fc;
+	//current time period 
+	//u8 rkeylen = 16;
+	long long int current_tp;
+	//u8 my_mac_address[ETH_ALEN] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xab};
+	
+	current_tp = (ktime_get_real_seconds()/5);
 
+	//define some mac address 01:23:45:67:89:ab
+	
+	/* u8 raddr1[ETH_ALEN];
+	u8 raddr2[ETH_ALEN];
+	u8 raddr3[ETH_ALEN];
+	u8 raddr4[ETH_ALEN]; */
+
+	
+	
+	
+
+	//LOG_FUNC;
 	if (WARN_ON(skb_queue_empty(skbs)))
 		return true;
 
 	skb = skb_peek(skbs);
 	fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
+
+	/* printk(KERN_DEBUG "Rathan: frame control %x\n", fc);
+	memcpy(raddr1, ((struct ieee80211_hdr *)skb->data)->addr1, sizeof(raddr1));
+	printk(KERN_DEBUG "Rathan: destination addr %pM\n", raddr1);
+	memcpy(raddr2, ((struct ieee80211_hdr *)skb->data)->addr2, sizeof(raddr2));
+	printk(KERN_DEBUG "Rathan: source addr %pM\n", raddr2);
+	memcpy(raddr3, ((struct ieee80211_hdr *)skb->data)->addr3, sizeof(raddr3));
+	printk(KERN_DEBUG "Rathan: bssid addr %pM\n", raddr3);
+	memcpy(raddr4, ((struct ieee80211_hdr *)skb->data)->addr4, sizeof(raddr4));
+	printk(KERN_DEBUG "Rathan: addr4 addr %pM\n", raddr4); */
+
+
 	info = IEEE80211_SKB_CB(skb);
 	sdata = vif_to_sdata(info->control.vif);
 	if (sta && !sta->uploaded)
@@ -1750,6 +2058,74 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 		break;
 	}
 
+	/* //change mac address of skb to fixed mac address
+	memcpy(((struct ieee80211_hdr *)skb->data)->addr1, my_mac_address, ETH_ALEN);
+	printk(KERN_DEBUG "Rathan: destination changed to addr %pM\n", ((struct ieee80211_hdr *)skb->data)->addr1); */
+
+	/* if(sdata->keys[0]->conf.key != NULL){
+		//generate_mac_address(info, 1, current_tp);
+		printk(KERN_DEBUG "Rathan: key is not null ");
+		
+	}else{
+		printk(KERN_DEBUG "Rathan: key is null ");
+	} */
+
+	//acessing the ptk key
+	/* if (sta && (key = rcu_dereference(sta->ptk[sta->ptk_idx]))) {
+		//generate_mac_address(info, 1, current_tp);
+		//printk(KERN_DEBUG "Rathan: key is not null ");
+		//printk(KERN_DEBUG "Rathan: location of ptk %p ", sta->ptk[sta->ptk_idx]->conf.key);
+		//printk(KERN_DEBUG "Rathan: ptk length %d ", sta->ptk[sta->ptk_idx]->conf.keylen);
+		if (sta->sdata->vif.type == NL80211_IFTYPE_AP){
+			printk(KERN_DEBUG "Rathan: sta type AP\n");
+		}else if (sta->sdata->vif.type == NL80211_IFTYPE_STATION){
+			printk(KERN_DEBUG "Rathan: sta type STATION\n");
+		}else{
+			printk(KERN_DEBUG "Rathan: sta type UNKNOWN\n");
+		}
+		printk(KERN_DEBUG "Rathan: ptk is  %*ph ", sta->ptk[sta->ptk_idx]->conf.keylen, sta->ptk[sta->ptk_idx]->conf.key);
+	} else {
+		printk(KERN_DEBUG "Rathan: no ptk key is null ");
+	} */
+	/* printk(KERN_DEBUG "Rathan: current time period %lld\n", current_tp);
+	printk(KERN_DEBUG "Rathan: interval time period %lld\n", interval_tp); */
+	if(sta != NULL){
+		//printk(KERN_DEBUG "Rathan: sta is not NULL\n");
+		//printk(KERN_DEBUG "Rathan: sta destination addr %pM\n", sta->addr);
+		if (sta->sdata->vif.type == NL80211_IFTYPE_AP){
+			printk(KERN_DEBUG "Rathan: sta type AP\n");
+			if(current_tp == interval_tp){
+				//printk(KERN_DEBUG "Rathan: current_tp is equal to interval_tp\n");
+				//change RX, DA mac address to current randomized mac address 
+			}else{ 
+				//generate new randomized mac address 
+				generate_mac_address(sta, 1, current_tp);
+				//test_fun(sta, 1, current_tp);
+				//change RX, DA mac address to updated randomized mac address
+				//update the interval_tp to current_tp
+				//printk(KERN_DEBUG "Rathan: current_tp is not equal to interval_tp\n");
+				interval_tp = current_tp;
+			}
+		}else if (sta->sdata->vif.type == NL80211_IFTYPE_STATION){
+			printk(KERN_DEBUG "Rathan: sta type STATION\n");
+			if(current_tp == interval_tp){
+				//printk(KERN_DEBUG "Rathan: current_tp is equal to interval_tp\n");
+				//change TX, SA mac address to current randomized mac address 
+			}else{
+				//generate new randomized mac address 
+				generate_mac_address(sta, 1, current_tp);
+				//test_fun(sta, 1, current_tp);
+				//change TX, SA mac address to updated randomized mac address
+				//update the interval_tp to current_tp
+				interval_tp = current_tp;
+			}
+		}else{
+			//printk(KERN_DEBUG "Rathan: sta type UNKNOWN\n");
+		}
+	}else{
+		//printk(KERN_DEBUG "Rathan: sta is NULL\n");
+	}
+
 	result = ieee80211_tx_frags(local, vif, pubsta, skbs,
 				    txpending);
 
@@ -1760,6 +2136,107 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	return result;
 }
 
+void generate_mac_address(struct sta_info *sta, int flag_addr, long long int current_tp) {
+	struct crypto_shash *shash;
+	struct shash_desc *shash_desc;
+	//struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
+	struct ieee80211_key *key;
+	//char data[MAC_ADDRESS_LENGTH + 16 + sizeof(current_tp)];  // Buffer for the data to be hashed
+	unsigned char hash[20];  // Buffer for the hash
+	//char *output_mac = kmalloc((MAC_ADDRESS_LENGTH * 3) + 1, GFP_KERNEL);  // Buffer for the output MAC address
+	int i;
+	char *data;
+	int total_size = MAC_ADDRESS_LENGTH + 16 + sizeof(current_tp);
+
+	// Assuming total_size is the sum of the lengths of the MAC address, the PTK key, and current_tp
+	
+	data = kmalloc(total_size, GFP_KERNEL);
+	if (!data) {
+		printk(KERN_ERR "Failed to allocate data\n");
+		return;
+	}
+
+	// Initialize the crypto hash
+	shash = crypto_alloc_shash("sha1", 0, 0);
+	if (IS_ERR(shash)) {
+		printk(KERN_ERR "Failed to allocate crypto hash\n");
+		return;
+	}
+
+	shash_desc = kmalloc(sizeof(struct shash_desc) + crypto_shash_descsize(shash), GFP_KERNEL);
+	if (!shash_desc) {
+		printk(KERN_ERR "Failed to allocate shash_desc\n");
+		crypto_free_shash(shash);
+		return;
+	}
+
+	shash_desc->tfm = shash;
+
+	printk(KERN_DEBUG "Rathan: hello");
+	// Concatenate the inputs
+	if (sta && (key = rcu_dereference(sta->ptk[sta->ptk_idx]))) {
+		printk(KERN_DEBUG "Rathan: mac address %pM", sta->addr);
+		printk(KERN_DEBUG "Rathan: %d", ETH_ALEN);
+		printk(KERN_DEBUG "Rathan: ptk key %*ph", sta->ptk[sta->ptk_idx]->conf.keylen, sta->ptk[sta->ptk_idx]->conf.key);
+		printk(KERN_DEBUG "Rathan: %u", sta->ptk[sta->ptk_idx]->conf.keylen);
+		printk(KERN_DEBUG "Rathan: current time period %lld", current_tp);
+		printk(KERN_DEBUG "Rathan: %zu", sizeof(current_tp));
+		
+		// Copy the MAC address to data
+		memcpy(data, sta->addr, ETH_ALEN);
+
+		// Copy the PTK key to data, after the MAC address
+		memcpy(data + ETH_ALEN, sta->ptk[sta->ptk_idx]->conf.key, sta->ptk[sta->ptk_idx]->conf.keylen);
+
+		// copy current_tp adjacet to the ptk key:
+		memcpy(data + ETH_ALEN + sta->ptk[sta->ptk_idx]->conf.keylen, &current_tp, sizeof(current_tp));
+
+		printk(KERN_DEBUG "Data: ");
+		for (i = 0; i < total_size; i++) {
+			printk(KERN_CONT "%02x", (unsigned char)data[i]);
+		}
+		printk(KERN_CONT "\n");
+	}
+	
+	
+	// Compute the hash
+	crypto_shash_digest(shash_desc, data, total_size, hash);
+
+	// Adjust the first byte of the hash to make it a valid MAC address
+	hash[0] = (hash[0] & 0xFC) | 0x02;  // Set bit-0 to 0 and bit-1 to 1
+
+	printk(KERN_DEBUG "Generated MAC address: ");
+	// Use the first 6 bytes of the hash as the MAC address
+	for (i = 0; i < MAC_ADDRESS_LENGTH; i++) {
+		printk(KERN_DEBUG "%02x:", hash[i]);
+	}
+	// Clean up
+	kfree(shash_desc);
+	crypto_free_shash(shash);
+	kfree(data);
+}
+
+void test_fun(struct sta_info *sta, int flag_addr, long long current_tp)
+{
+	struct ieee80211_key *key;
+
+	if (sta && (key = rcu_dereference(sta->ptk[sta->ptk_idx]))) {
+		//generate_mac_address(info, 1, current_tp);
+		//printk(KERN_DEBUG "Rathan: key is not null ");
+		//printk(KERN_DEBUG "Rathan: location of ptk %p ", sta->ptk[sta->ptk_idx]->conf.key);
+		//printk(KERN_DEBUG "Rathan: ptk length %d ", sta->ptk[sta->ptk_idx]->conf.keylen);
+		if (sta->sdata->vif.type == NL80211_IFTYPE_AP){
+			printk(KERN_DEBUG "Rathan: sta type AP\n");
+		}else if (sta->sdata->vif.type == NL80211_IFTYPE_STATION){
+			printk(KERN_DEBUG "Rathan: sta type STATION\n");
+		}else{
+			printk(KERN_DEBUG "Rathan: sta type UNKNOWN\n");
+		}
+		printk(KERN_DEBUG "Rathan: ptk is  %*ph ", sta->ptk[sta->ptk_idx]->conf.keylen, sta->ptk[sta->ptk_idx]->conf.key);
+	} else {
+		printk(KERN_DEBUG "Rathan: no ptk key is null ");
+	}
+}
 /*
  * Invoke TX handlers, return 0 on success and non-zero if the
  * frame was dropped or queued.
@@ -1771,6 +2248,7 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 static int invoke_tx_handlers_early(struct ieee80211_tx_data *tx)
 {
 	ieee80211_tx_result res = TX_DROP;
+	//LOG_FUNC;
 
 #define CALL_TXH(txh) \
 	do {				\
@@ -1812,6 +2290,7 @@ static int invoke_tx_handlers_late(struct ieee80211_tx_data *tx)
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 	ieee80211_tx_result res = TX_CONTINUE;
 
+	//LOG_FUNC;
 	if (unlikely(info->flags & IEEE80211_TX_INTFL_RETRANSMISSION)) {
 		__skb_queue_tail(&tx->skbs, tx->skb);
 		tx->skb = NULL;
@@ -1848,6 +2327,7 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 {
 	int r = invoke_tx_handlers_early(tx);
 
+	//LOG_FUNC;
 	if (r)
 		return r;
 	return invoke_tx_handlers_late(tx);
@@ -1862,6 +2342,7 @@ bool ieee80211_tx_prepare_skb(struct ieee80211_hw *hw,
 	struct ieee80211_tx_data tx;
 	struct sk_buff *skb2;
 
+	//LOG_FUNC;
 	if (ieee80211_tx_prepare(sdata, &tx, NULL, skb) == TX_DROP)
 		return false;
 
@@ -1905,6 +2386,7 @@ static bool ieee80211_tx(struct ieee80211_sub_if_data *sdata,
 	bool result = true;
 	int led_len;
 
+	//LOG_FUNC;
 	if (unlikely(skb->len < 10)) {
 		dev_kfree_skb(skb);
 		return true;
@@ -1953,6 +2435,7 @@ static int ieee80211_skb_resize(struct ieee80211_sub_if_data *sdata,
 	bool enc_tailroom;
 	int tail_need = 0;
 
+	//LOG_FUNC;
 	hdr = (struct ieee80211_hdr *) skb->data;
 	enc_tailroom = may_encrypt &&
 		       (sdata->crypto_tx_tailroom_needed_cnt ||
@@ -1992,6 +2475,7 @@ void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 	int headroom;
 	bool may_encrypt;
 
+	//LOG_FUNC;
 	may_encrypt = !(info->flags & IEEE80211_TX_INTFL_DONT_ENCRYPT);
 
 	headroom = local->tx_headroom;
@@ -2043,6 +2527,7 @@ static bool ieee80211_parse_tx_radiotap(struct ieee80211_local *local,
 	u8 vht_mcs = 0, vht_nss = 0;
 	int i;
 
+	//LOG_FUNC;
 	info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT |
 		       IEEE80211_TX_CTL_DONTFRAG;
 
@@ -2218,6 +2703,7 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 	u16 len_rthdr;
 	int hdrlen;
 
+	//LOG_FUNC;
 	/* check for not even having the fixed radiotap header part */
 	if (unlikely(skb->len < sizeof(struct ieee80211_radiotap_header)))
 		goto fail; /* too short to be possibly valid */
@@ -2365,6 +2851,7 @@ static inline bool ieee80211_is_tdls_setup(struct sk_buff *skb)
 {
 	u16 ethertype = (skb->data[12] << 8) | skb->data[13];
 
+	//LOG_FUNC;
 	return ethertype == ETH_P_TDLS &&
 	       skb->len > 14 &&
 	       skb->data[14] == WLAN_TDLS_SNAP_RFTYPE;
@@ -2376,6 +2863,7 @@ static int ieee80211_lookup_ra_sta(struct ieee80211_sub_if_data *sdata,
 {
 	struct sta_info *sta;
 
+	//LOG_FUNC;
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP_VLAN:
 		sta = rcu_dereference(sdata->u.vlan.sta);
@@ -2481,6 +2969,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	enum nl80211_band band;
 	int ret;
 
+	//LOG_FUNC;
 	if (IS_ERR(sta))
 		sta = NULL;
 
@@ -2882,6 +3371,7 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	__le16 fc;
 
+	//LOG_FUNC;
 	if (!ieee80211_hw_check(&local->hw, SUPPORT_FAST_XMIT))
 		return;
 
@@ -3105,6 +3595,7 @@ void ieee80211_check_fast_xmit_all(struct ieee80211_local *local)
 {
 	struct sta_info *sta;
 
+	//LOG_FUNC;
 	rcu_read_lock();
 	list_for_each_entry_rcu(sta, &local->sta_list, list)
 		ieee80211_check_fast_xmit(sta);
@@ -3116,6 +3607,7 @@ void ieee80211_check_fast_xmit_iface(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 
+	//LOG_FUNC;
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(sta, &local->sta_list, list) {
@@ -3132,6 +3624,7 @@ void ieee80211_clear_fast_xmit(struct sta_info *sta)
 {
 	struct ieee80211_fast_tx *fast_tx;
 
+	//LOG_FUNC;
 	spin_lock_bh(&sta->lock);
 	fast_tx = rcu_dereference_protected(sta->fast_tx,
 					    lockdep_is_held(&sta->lock));
@@ -3145,6 +3638,7 @@ void ieee80211_clear_fast_xmit(struct sta_info *sta)
 static bool ieee80211_amsdu_realloc_pad(struct ieee80211_local *local,
 					struct sk_buff *skb, int headroom)
 {
+	//LOG_FUNC;
 	if (skb_headroom(skb) < headroom) {
 		I802_DEBUG_INC(local->tx_expand_skb_head);
 
@@ -3172,6 +3666,7 @@ static bool ieee80211_amsdu_prepare_head(struct ieee80211_sub_if_data *sdata,
 	u8 *qc, *h_80211_src, *h_80211_dst;
 	const u8 *bssid;
 
+	//LOG_FUNC;
 	if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
 		return false;
 
@@ -3249,6 +3744,7 @@ static bool ieee80211_amsdu_aggregate(struct ieee80211_sub_if_data *sdata,
 	int n = 2, nfrags, pad = 0;
 	u16 hdrlen;
 
+	//LOG_FUNC;
 	if (!ieee80211_hw_check(&local->hw, TX_AMSDU))
 		return false;
 
@@ -3369,6 +3865,7 @@ static void ieee80211_xmit_fast_finish(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	u8 tid = IEEE80211_NUM_TIDS;
 
+	//LOG_FUNC;
 	if (key)
 		info->control.hw_key = &key->conf;
 
@@ -3436,6 +3933,7 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 	struct tid_ampdu_tx *tid_tx = NULL;
 	u8 tid = IEEE80211_NUM_TIDS;
 
+	//LOG_FUNC;
 	/* control port protocol needs a lot of special handling */
 	if (cpu_to_be16(ethertype) == sdata->control_port_protocol)
 		return false;
@@ -3562,6 +4060,7 @@ struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 	ieee80211_tx_result r;
 	struct ieee80211_vif *vif = txq->vif;
 
+	//LOG_FUNC;
 	WARN_ON_ONCE(softirq_count() == 0);
 
 begin:
@@ -3707,6 +4206,7 @@ struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac)
 	struct ieee80211_txq *ret = NULL;
 	struct txq_info *txqi = NULL;
 
+	//LOG_FUNC;
 	spin_lock_bh(&local->active_txq_lock[ac]);
 
  begin:
@@ -3750,6 +4250,7 @@ void __ieee80211_schedule_txq(struct ieee80211_hw *hw,
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct txq_info *txqi = to_txq_info(txq);
 
+	//LOG_FUNC;
 	spin_lock_bh(&local->active_txq_lock[txq->ac]);
 
 	if (list_empty(&txqi->schedule_order) &&
@@ -3784,6 +4285,7 @@ bool ieee80211_txq_may_transmit(struct ieee80211_hw *hw,
 	struct sta_info *sta;
 	u8 ac = txq->ac;
 
+	//LOG_FUNC;
 	spin_lock_bh(&local->active_txq_lock[ac]);
 
 	if (!txqi->txq.sta)
@@ -3830,6 +4332,7 @@ void ieee80211_txq_schedule_start(struct ieee80211_hw *hw, u8 ac)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
+	//LOG_FUNC;
 	spin_lock_bh(&local->active_txq_lock[ac]);
 	local->schedule_round[ac]++;
 	spin_unlock_bh(&local->active_txq_lock[ac]);
@@ -3846,6 +4349,7 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 	struct sta_info *sta;
 	struct sk_buff *next;
 
+	//LOG_FUNC;
 	if (unlikely(skb->len < ETH_HLEN)) {
 		kfree_skb(skb);
 		return;
@@ -3934,6 +4438,7 @@ static int ieee80211_change_da(struct sk_buff *skb, struct sta_info *sta)
 	struct ethhdr *eth;
 	int err;
 
+	//LOG_FUNC;
 	err = skb_ensure_writable(skb, ETH_HLEN);
 	if (unlikely(err))
 		return err;
@@ -3952,6 +4457,7 @@ static bool ieee80211_multicast_to_unicast(struct sk_buff *skb,
 	const struct vlan_ethhdr *ethvlan = (void *)skb->data;
 	__be16 ethertype;
 
+	//LOG_FUNC;
 	if (likely(!is_multicast_ether_addr(eth->h_dest)))
 		return false;
 
@@ -3997,6 +4503,7 @@ ieee80211_convert_to_unicast(struct sk_buff *skb, struct net_device *dev,
 	struct sta_info *sta, *first = NULL;
 	struct sk_buff *cloned_skb;
 
+	//LOG_FUNC;
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(sta, &local->sta_list, list) {
@@ -4048,6 +4555,7 @@ out:
 netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 				       struct net_device *dev)
 {
+	//LOG_FUNC;
 	if (unlikely(ieee80211_multicast_to_unicast(skb, dev))) {
 		struct sk_buff_head queue;
 
@@ -4073,6 +4581,7 @@ ieee80211_build_data_template(struct ieee80211_sub_if_data *sdata,
 	};
 	struct sta_info *sta;
 
+	//LOG_FUNC;
 	rcu_read_lock();
 
 	if (ieee80211_lookup_ra_sta(sdata, skb, &sta)) {
@@ -4109,6 +4618,7 @@ void ieee80211_clear_tx_pending(struct ieee80211_local *local)
 	struct sk_buff *skb;
 	int i;
 
+	//LOG_FUNC;
 	for (i = 0; i < local->hw.queues; i++) {
 		while ((skb = skb_dequeue(&local->pending[i])) != NULL)
 			ieee80211_free_txskb(&local->hw, skb);
@@ -4130,6 +4640,7 @@ static bool ieee80211_tx_pending_skb(struct ieee80211_local *local,
 	bool result;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 
+	//LOG_FUNC;
 	sdata = vif_to_sdata(info->control.vif);
 
 	if (info->flags & IEEE80211_TX_INTFL_NEED_TXPROCESSING) {
@@ -4165,6 +4676,7 @@ void ieee80211_tx_pending(unsigned long data)
 	int i;
 	bool txok;
 
+	//LOG_FUNC;
 	rcu_read_lock();
 
 	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
@@ -4214,6 +4726,7 @@ static void __ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
 	int aid0 = 0;
 	int i, have_bits = 0, n1, n2;
 
+	////LOG_FUNC;
 	/* Generate bitmap for TIM only if there are any STAs in power save
 	 * mode. */
 	if (atomic_read(&ps->num_sta_ps) > 0)
@@ -4277,6 +4790,7 @@ static int ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 
+	////LOG_FUNC;
 	/*
 	 * Not very nice, but we want to allow the driver to call
 	 * ieee80211_beacon_get() as a response to the set_tim()
@@ -4304,6 +4818,7 @@ static void ieee80211_set_csa(struct ieee80211_sub_if_data *sdata,
 	int i;
 	u8 count = beacon->csa_current_counter;
 
+	//LOG_FUNC;
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP:
 		beacon_data = beacon->tail;
@@ -4345,6 +4860,7 @@ static u8 __ieee80211_csa_update_counter(struct beacon_data *beacon)
 {
 	beacon->csa_current_counter--;
 
+	//LOG_FUNC;
 	/* the counter should never reach 0 */
 	WARN_ON_ONCE(!beacon->csa_current_counter);
 
@@ -4357,6 +4873,7 @@ u8 ieee80211_csa_update_counter(struct ieee80211_vif *vif)
 	struct beacon_data *beacon = NULL;
 	u8 count = 0;
 
+	//LOG_FUNC;
 	rcu_read_lock();
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP)
@@ -4382,6 +4899,7 @@ void ieee80211_csa_set_counter(struct ieee80211_vif *vif, u8 counter)
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct beacon_data *beacon = NULL;
 
+	//LOG_FUNC;
 	rcu_read_lock();
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP)
@@ -4410,6 +4928,7 @@ bool ieee80211_csa_is_complete(struct ieee80211_vif *vif)
 	size_t beacon_data_len;
 	int ret = false;
 
+	//LOG_FUNC;
 	if (!ieee80211_sdata_running(sdata))
 		return false;
 
@@ -4476,6 +4995,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	int csa_off_base = 0;
 
+	////LOG_FUNC;
 	rcu_read_lock();
 
 	sdata = vif_to_sdata(vif);
@@ -4646,6 +5166,7 @@ ieee80211_beacon_get_template(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_mutable_offsets *offs)
 {
+	//LOG_FUNC;
 	return __ieee80211_beacon_get(hw, vif, offs, true);
 }
 EXPORT_SYMBOL(ieee80211_beacon_get_template);
@@ -4660,6 +5181,7 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 	struct ieee80211_supported_band *sband;
 	int shift;
 
+	////LOG_FUNC;
 	if (!bcn)
 		return bcn;
 
@@ -4699,6 +5221,7 @@ struct sk_buff *ieee80211_proberesp_get(struct ieee80211_hw *hw,
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 
+	//LOG_FUNC;
 	if (sdata->vif.type != NL80211_IFTYPE_AP)
 		return NULL;
 
@@ -4733,6 +5256,7 @@ struct sk_buff *ieee80211_pspoll_get(struct ieee80211_hw *hw,
 	struct ieee80211_local *local;
 	struct sk_buff *skb;
 
+	//LOG_FUNC;
 	if (WARN_ON(vif->type != NL80211_IFTYPE_STATION))
 		return NULL;
 
@@ -4772,6 +5296,7 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 	struct sk_buff *skb;
 	bool qos = false;
 
+	//LOG_FUNC;
 	if (WARN_ON(vif->type != NL80211_IFTYPE_STATION))
 		return NULL;
 
@@ -4831,6 +5356,7 @@ struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw,
 	size_t ie_ssid_len;
 	u8 *pos;
 
+	//LOG_FUNC;
 	ie_ssid_len = 2 + ssid_len;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*hdr) +
@@ -4865,6 +5391,7 @@ void ieee80211_rts_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	const struct ieee80211_hdr *hdr = frame;
 
+	//LOG_FUNC;
 	rts->frame_control =
 	    cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_RTS);
 	rts->duration = ieee80211_rts_duration(hw, vif, frame_len,
@@ -4881,6 +5408,7 @@ void ieee80211_ctstoself_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	const struct ieee80211_hdr *hdr = frame;
 
+	//LOG_FUNC;
 	cts->frame_control =
 	    cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CTS);
 	cts->duration = ieee80211_ctstoself_duration(hw, vif,
@@ -4901,6 +5429,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 
+	//LOG_FUNC;
 	sdata = vif_to_sdata(vif);
 
 	rcu_read_lock();
@@ -4971,6 +5500,7 @@ int ieee80211_reserve_tid(struct ieee80211_sta *pubsta, u8 tid)
 	int ret;
 	u32 queues;
 
+	//LOG_FUNC;
 	lockdep_assert_held(&local->sta_mtx);
 
 	/* only some cases are supported right now */
@@ -5034,6 +5564,7 @@ void ieee80211_unreserve_tid(struct ieee80211_sta *pubsta, u8 tid)
 
 	lockdep_assert_held(&sdata->local->sta_mtx);
 
+	//LOG_FUNC;
 	/* only some cases are supported right now */
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_STATION:
@@ -5064,6 +5595,7 @@ void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 	skb_set_queue_mapping(skb, ac);
 	skb->priority = tid;
 
+	//LOG_FUNC;
 	skb->dev = sdata->dev;
 
 	/*
@@ -5088,6 +5620,7 @@ int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 	u32 ctrl_flags = 0;
 	u32 flags;
 
+	//LOG_FUNC;
 	/* Only accept CONTROL_PORT_PROTOCOL configured in CONNECT/ASSOCIATE
 	 * or Pre-Authentication
 	 */
@@ -5136,6 +5669,7 @@ int ieee80211_probe_mesh_link(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 
+	//LOG_FUNC;
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + len +
 			    30 + /* header size */
 			    18); /* 11s header size */

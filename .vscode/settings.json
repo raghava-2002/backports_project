@@ -3,6 +3,10 @@
         "hwsim": "c",
         "array": "c",
         "string": "c",
-        "string_view": "c"
+        "string_view": "c",
+        "codel_impl.h": "c",
+        "codel.h": "c",
+        "etherdevice.h": "c",
+        "scatterlist.h": "c"
     }
 }

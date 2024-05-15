@@ -1516,13 +1516,17 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 
 	mac_hdr = (struct ieee80211_hdr *)(skb->data + skb->mac_len);
 	//LOG_FUNC;
-
+	
 	/* Rathan wrote these lines to know from where to where the packet is transfering in the physical layer */
+<<<<<<< HEAD
 	
 	/*
 	printk(KERN_DEBUG "Transmitting packet from %pM to %pM on interface %s\n",
        hdr->addr2, hdr->addr1, wiphy_name(hw->wiphy));
 	*/
+=======
+	//printk(KERN_DEBUG "Transmitting packet from %pM to %pM on interface %s\n", hdr->addr2, hdr->addr1, wiphy_name(hw->wiphy));
+>>>>>>> key_checking
 	
 	/* Rathan wrote these lines to know the packet length
 	printk(KERN_DEBUG "Packet length is %d\n", skb->len);
