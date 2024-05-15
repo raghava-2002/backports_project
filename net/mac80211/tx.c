@@ -36,10 +36,27 @@
 #include "wme.h"
 #include "rate.h"
 
-/* misc utils */
+ /* misc utils */
+#include <linux/crypto.h>
+#include <linux/scatterlist.h>
+#define MAC_ADDRESS_LENGTH 6 
+
+long long int interval_tp; // epoch interval
+int epoch_flag = 0;
+// char *output_mac;
+
+static void epoch_interval(void); // function declaration
+void test_fun(struct sta_info *sta, int flag_addr, long long current_tp);
+void generate_mac_address(struct sta_info *sta, int flag_addr, long long current_tp);
 
 #define LOG_FUNC printk(KERN_DEBUG "Rathan: %s function called\n", __func__)
 
+void epoch_interval(void){
+	if (!epoch_flag){
+		interval_tp = (ktime_get_real_seconds() / 5);
+		epoch_flag = 1;
+	}
+}
 static inline void ieee80211_tx_stats(struct net_device *dev, u32 len)
 {
 	struct pcpu_sw_netstats *tstats = this_cpu_ptr(netdev_tstats(dev));
@@ -623,6 +640,8 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 		printk(KERN_DEBUG "Rathan: ptk length in bytes = %d", tx->key->conf.keylen);
 		//printk(KERN_DEBUG "Rathan: ptk cipher  suite = %u", tx->key->conf.cipher);
 		*/
+		//print frame control
+		//printk(KERN_DEBUG "Rathan: frame control = %04x\n", hdr->frame_control);
 		}
 	else if (ieee80211_is_group_privacy_action(tx->skb) &&
 		(key = rcu_dereference(tx->sdata->default_multicast_key))){
@@ -1063,6 +1082,82 @@ static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 {
 	//LOG_FUNC;
+ 	//struct sk_buff *skb;
+	//struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	
+
+	/* if (!tx) {
+		printk(KERN_DEBUG "Rathan: test1");
+	} else {
+		printk(KERN_DEBUG "Rathan: test2");
+	}
+
+	if (!tx->skb) {
+		printk(KERN_DEBUG "Rathan: test3");
+	} else {
+		printk(KERN_DEBUG "Rathan: test4");
+	}
+ */
+	//generate_mac_address(tx, 1, current_tp);
+
+	//test_fun(tx, 1, current_tp);
+
+	// print skb->data
+	//printk(KERN_DEBUG "Rathan: skb->data %*ph", skb->len, skb->data);
+
+	//printk(KERN_DEBUG "Rathan: tx key %*ph", tx->key->conf.keylen, tx->key->conf.key);
+	/*
+	
+	//Actual mac address randomizaaation logic starts here
+	if(tx->sdata->vif.type == NL80211_IFTYPE_AP){
+		printk(KERN_DEBUG "Rathan: AP mode,\n");
+		
+		if (interval_tp != current_tp){
+			printk(KERN_DEBUG "Rathan: generate new mac address");
+			interval_tp = current_tp;
+			//use function generate_mac_address input as hdr->addr1, tx->key, current_tp
+			//generate_mac_address(hdr->addr1, tx->key->conf.key, current_tp);
+			printk(KERN_DEBUG "Rathan: output_mac %s", output_mac);
+			//update in the table with new mac address
+
+		}
+		else{
+			printk(KERN_DEBUG "Rathan: use old period mac address");
+		}
+		//change RX and DA mac address with new randomized mac address
+		
+		
+	}
+	else{
+		printk(KERN_DEBUG "Rathan: STA mode\n");
+
+		if (interval_tp != current_tp){
+			printk(KERN_DEBUG "Rathan: generate new mac address");
+			interval_tp = current_tp;
+			//use function generate_mac_address input as hdr->addr2, tx->key, current_tp
+			//generate_mac_address(hdr->addr2, tx->key->conf.key, current_tp);
+			printk(KERN_DEBUG "Rathan: output_mac %s", output_mac);
+			//update in the table with new mac address
+		}
+		else{
+			printk(KERN_DEBUG "Rathan: use old period mac address");
+		}
+		//change TX and SA mac address with new randomized mac address
+	}
+
+	*/
+	// printk(KERN_DEBUG "Rathan: interval_tp %lld", interval_tp);
+	// printk(KERN_DEBUG "Rathan: current_tp %lld", current_tp);
+
+	
+	// if (interval_tp != current_tp){
+	// 	printk(KERN_DEBUG "Rathan: generate new mac address");
+	// 	interval_tp = current_tp;
+	// }
+	// else{
+	// 	printk(KERN_DEBUG "Rathan: use old period mac address");
+	// }
+	
 	if (!tx->key)
 		return TX_CONTINUE;
 
@@ -1094,6 +1189,78 @@ ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 
 	return TX_DROP;
 }
+
+//function to create randomized mac address mac address
+
+//void generate_mac_address(struct ieee80211_tx_data *tx, int flag_addr, long long int current_tp) {
+
+
+/* void generate_mac_address(struct ieee80211_tx_data *tx,int flag_addr, long long int current_tp) {
+	struct crypto_shash *shash;
+	struct shash_desc *shash_desc;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
+	char data[MAC_ADDRESS_LENGTH + 16 + sizeof(current_tp)];  // Buffer for the data to be hashed
+	unsigned char hash[20];  // Buffer for the hash
+	//char *output_mac = kmalloc((MAC_ADDRESS_LENGTH * 3) + 1, GFP_KERNEL);  // Buffer for the output MAC address
+	int i;
+
+	
+	// Initialize the crypto hash
+	shash = crypto_alloc_shash("sha1", 0, 0);
+	if (IS_ERR(shash)) {
+		printk(KERN_ERR "Failed to allocate crypto hash\n");
+		return;
+	}
+
+	shash_desc = kmalloc(sizeof(struct shash_desc) + crypto_shash_descsize(shash), GFP_KERNEL);
+	if (!shash_desc) {
+		printk(KERN_ERR "Failed to allocate shash_desc\n");
+		crypto_free_shash(shash);
+		return;
+	}
+
+	shash_desc->tfm = shash;
+
+	// Concatenate the inputs
+	sprintf(data, "%pM%*ph%lld", hdr->addr1, tx->key->conf.keylen, tx->key->conf.key, current_tp);
+
+	// Compute the hash
+	crypto_shash_digest(shash_desc, data, strlen(data), hash);
+
+	// Adjust the first byte of the hash to make it a valid MAC address
+	hash[0] = (hash[0] & 0xFC) | 0x02;  // Set bit-0 to 0 and bit-1 to 1
+
+	printk(KERN_DEBUG "Generated MAC address: ");
+	// Use the first 6 bytes of the hash as the MAC address
+	for (i = 0; i < MAC_ADDRESS_LENGTH; i++) {
+		printk(KERN_DEBUG "%02x:", hash[i]);
+	}
+	// Clean up
+	kfree(shash_desc);
+	crypto_free_shash(shash);
+} */
+
+
+/* void test_fun(struct ieee80211_tx_data *tx, int flag_addr, long long current_tp)
+{
+	struct sk_buff *skb = tx->skb;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *hdr = (void *)skb->data;
+
+	printk(KERN_DEBUG "Rathan: test function\n");
+	if (flag_addr == 1){
+		printk(KERN_DEBUG "Rathan: addr1 %pM", hdr->addr1);
+	}
+	else{
+		printk(KERN_DEBUG "Rathan: addr2 %pM", hdr->addr2);
+	}
+
+	printk(KERN_DEBUG "Rathan: current_tp %lld", current_tp);
+	return;
+} */
+
+
+
 
 static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_calculate_duration(struct ieee80211_tx_data *tx)
@@ -1595,6 +1762,7 @@ int ieee80211_txq_setup_flows(struct ieee80211_local *local)
 	enum nl80211_band band;
 
 	//LOG_FUNC;
+	epoch_interval();
 	if (!local->ops->wake_tx_queue)
 		return 0;
 
@@ -1697,11 +1865,48 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 	struct sk_buff *skb, *tmp;
 	unsigned long flags;
 
+	/* if(!vif) {
+		printk(KERN_DEBUG "Rathan: vif is NULL\n");
+	}else{
+		printk(KERN_DEBUG "Rathan: vif is not NULL\n");
+	} */
+/* 	if(!skb){
+		printk(KERN_DEBUG "Rathan: skb is NULL\n");
+	}else{
+		printk(KERN_DEBUG "Rathan: skb is not NULL\n");
+	} */
+	/* if(!local){
+		printk(KERN_DEBUG "Rathan: local is NULL\n");
+	}else{
+		printk(KERN_DEBUG "Rathan: local is not NULL\n");
+	} */
 	//LOG_FUNC;
 	skb_queue_walk_safe(skbs, skb, tmp) {
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 		int q = info->hw_queue;
 
+	/* if(!info){
+		printk(KERN_DEBUG "Rathan: info is NULL\n");
+	}else{
+		printk(KERN_DEBUG "Rathan: info is not NULL\n");
+	}
+	printk(KERN_DEBUG "Rathan: hw queue %d\n", q);
+    */
+	
+    /* if (info->control.hw_key != NULL) {
+    	// Printing information about the hardware key
+        printk(KERN_DEBUG "Rathan: key is %d ", info->control.hw_key->keylen);
+    } else {
+        printk(KERN_DEBUG "Rathan: No hardware key associated.");
+    } */
+
+    //printk(KERN_DEBUG "Rathan: key is %*ph ", info->control.hw_key->keylen, info->control.hw_key->key);
+
+	/* if (!sta){
+		printk(KERN_DEBUG "Rathan: sta is NULL\n");
+	}else{
+		printk(KERN_DEBUG "Rathan: sta is not NULL\n");
+	} */ 
 #ifdef CPTCFG_MAC80211_VERBOSE_DEBUG
 		if (WARN_ON_ONCE(q >= local->hw.queues)) {
 			__skb_unlink(skb, skbs);
@@ -1755,7 +1960,7 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 		control.sta = sta;
 
 		__skb_unlink(skb, skbs);
-		drv_tx(local, &control, skb);
+		drv_tx(local, &control, skb); // responsible for transmitting the packet for transmission of the packet
 	}
 
 	return true;
@@ -1763,6 +1968,11 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 
 /*
  * Returns false if the frame couldn't be transmitted but was queued instead.
+
+Finally, the function calls ieee80211_tx_frags to transmit the network packets, 
+triggers an LED event, checks if the skbs queue is empty, 
+and returns the result of the transmission.
+ 
  */
 static bool __ieee80211_tx(struct ieee80211_local *local,
 			   struct sk_buff_head *skbs, int led_len,
@@ -1773,8 +1983,26 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	struct ieee80211_vif *vif;
 	struct ieee80211_sta *pubsta;
 	struct sk_buff *skb;
+	//struct ieee80211_key *key;
 	bool result = true;
 	__le16 fc;
+	//current time period 
+	//u8 rkeylen = 16;
+	long long int current_tp;
+	//u8 my_mac_address[ETH_ALEN] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xab};
+	
+	current_tp = (ktime_get_real_seconds()/5);
+
+	//define some mac address 01:23:45:67:89:ab
+	
+	/* u8 raddr1[ETH_ALEN];
+	u8 raddr2[ETH_ALEN];
+	u8 raddr3[ETH_ALEN];
+	u8 raddr4[ETH_ALEN]; */
+
+	
+	
+	
 
 	//LOG_FUNC;
 	if (WARN_ON(skb_queue_empty(skbs)))
@@ -1782,6 +2010,18 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 
 	skb = skb_peek(skbs);
 	fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
+
+	/* printk(KERN_DEBUG "Rathan: frame control %x\n", fc);
+	memcpy(raddr1, ((struct ieee80211_hdr *)skb->data)->addr1, sizeof(raddr1));
+	printk(KERN_DEBUG "Rathan: destination addr %pM\n", raddr1);
+	memcpy(raddr2, ((struct ieee80211_hdr *)skb->data)->addr2, sizeof(raddr2));
+	printk(KERN_DEBUG "Rathan: source addr %pM\n", raddr2);
+	memcpy(raddr3, ((struct ieee80211_hdr *)skb->data)->addr3, sizeof(raddr3));
+	printk(KERN_DEBUG "Rathan: bssid addr %pM\n", raddr3);
+	memcpy(raddr4, ((struct ieee80211_hdr *)skb->data)->addr4, sizeof(raddr4));
+	printk(KERN_DEBUG "Rathan: addr4 addr %pM\n", raddr4); */
+
+
 	info = IEEE80211_SKB_CB(skb);
 	sdata = vif_to_sdata(info->control.vif);
 	if (sta && !sta->uploaded)
@@ -1818,6 +2058,74 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 		break;
 	}
 
+	/* //change mac address of skb to fixed mac address
+	memcpy(((struct ieee80211_hdr *)skb->data)->addr1, my_mac_address, ETH_ALEN);
+	printk(KERN_DEBUG "Rathan: destination changed to addr %pM\n", ((struct ieee80211_hdr *)skb->data)->addr1); */
+
+	/* if(sdata->keys[0]->conf.key != NULL){
+		//generate_mac_address(info, 1, current_tp);
+		printk(KERN_DEBUG "Rathan: key is not null ");
+		
+	}else{
+		printk(KERN_DEBUG "Rathan: key is null ");
+	} */
+
+	//acessing the ptk key
+	/* if (sta && (key = rcu_dereference(sta->ptk[sta->ptk_idx]))) {
+		//generate_mac_address(info, 1, current_tp);
+		//printk(KERN_DEBUG "Rathan: key is not null ");
+		//printk(KERN_DEBUG "Rathan: location of ptk %p ", sta->ptk[sta->ptk_idx]->conf.key);
+		//printk(KERN_DEBUG "Rathan: ptk length %d ", sta->ptk[sta->ptk_idx]->conf.keylen);
+		if (sta->sdata->vif.type == NL80211_IFTYPE_AP){
+			printk(KERN_DEBUG "Rathan: sta type AP\n");
+		}else if (sta->sdata->vif.type == NL80211_IFTYPE_STATION){
+			printk(KERN_DEBUG "Rathan: sta type STATION\n");
+		}else{
+			printk(KERN_DEBUG "Rathan: sta type UNKNOWN\n");
+		}
+		printk(KERN_DEBUG "Rathan: ptk is  %*ph ", sta->ptk[sta->ptk_idx]->conf.keylen, sta->ptk[sta->ptk_idx]->conf.key);
+	} else {
+		printk(KERN_DEBUG "Rathan: no ptk key is null ");
+	} */
+	/* printk(KERN_DEBUG "Rathan: current time period %lld\n", current_tp);
+	printk(KERN_DEBUG "Rathan: interval time period %lld\n", interval_tp); */
+	if(sta != NULL){
+		//printk(KERN_DEBUG "Rathan: sta is not NULL\n");
+		//printk(KERN_DEBUG "Rathan: sta destination addr %pM\n", sta->addr);
+		if (sta->sdata->vif.type == NL80211_IFTYPE_AP){
+			printk(KERN_DEBUG "Rathan: sta type AP\n");
+			if(current_tp == interval_tp){
+				//printk(KERN_DEBUG "Rathan: current_tp is equal to interval_tp\n");
+				//change RX, DA mac address to current randomized mac address 
+			}else{ 
+				//generate new randomized mac address 
+				generate_mac_address(sta, 1, current_tp);
+				//test_fun(sta, 1, current_tp);
+				//change RX, DA mac address to updated randomized mac address
+				//update the interval_tp to current_tp
+				//printk(KERN_DEBUG "Rathan: current_tp is not equal to interval_tp\n");
+				interval_tp = current_tp;
+			}
+		}else if (sta->sdata->vif.type == NL80211_IFTYPE_STATION){
+			printk(KERN_DEBUG "Rathan: sta type STATION\n");
+			if(current_tp == interval_tp){
+				//printk(KERN_DEBUG "Rathan: current_tp is equal to interval_tp\n");
+				//change TX, SA mac address to current randomized mac address 
+			}else{
+				//generate new randomized mac address 
+				generate_mac_address(sta, 1, current_tp);
+				//test_fun(sta, 1, current_tp);
+				//change TX, SA mac address to updated randomized mac address
+				//update the interval_tp to current_tp
+				interval_tp = current_tp;
+			}
+		}else{
+			//printk(KERN_DEBUG "Rathan: sta type UNKNOWN\n");
+		}
+	}else{
+		//printk(KERN_DEBUG "Rathan: sta is NULL\n");
+	}
+
 	result = ieee80211_tx_frags(local, vif, pubsta, skbs,
 				    txpending);
 
@@ -1828,6 +2136,107 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	return result;
 }
 
+void generate_mac_address(struct sta_info *sta, int flag_addr, long long int current_tp) {
+	struct crypto_shash *shash;
+	struct shash_desc *shash_desc;
+	//struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
+	struct ieee80211_key *key;
+	//char data[MAC_ADDRESS_LENGTH + 16 + sizeof(current_tp)];  // Buffer for the data to be hashed
+	unsigned char hash[20];  // Buffer for the hash
+	//char *output_mac = kmalloc((MAC_ADDRESS_LENGTH * 3) + 1, GFP_KERNEL);  // Buffer for the output MAC address
+	int i;
+	char *data;
+	int total_size = MAC_ADDRESS_LENGTH + 16 + sizeof(current_tp);
+
+	// Assuming total_size is the sum of the lengths of the MAC address, the PTK key, and current_tp
+	
+	data = kmalloc(total_size, GFP_KERNEL);
+	if (!data) {
+		printk(KERN_ERR "Failed to allocate data\n");
+		return;
+	}
+
+	// Initialize the crypto hash
+	shash = crypto_alloc_shash("sha1", 0, 0);
+	if (IS_ERR(shash)) {
+		printk(KERN_ERR "Failed to allocate crypto hash\n");
+		return;
+	}
+
+	shash_desc = kmalloc(sizeof(struct shash_desc) + crypto_shash_descsize(shash), GFP_KERNEL);
+	if (!shash_desc) {
+		printk(KERN_ERR "Failed to allocate shash_desc\n");
+		crypto_free_shash(shash);
+		return;
+	}
+
+	shash_desc->tfm = shash;
+
+	printk(KERN_DEBUG "Rathan: hello");
+	// Concatenate the inputs
+	if (sta && (key = rcu_dereference(sta->ptk[sta->ptk_idx]))) {
+		printk(KERN_DEBUG "Rathan: mac address %pM", sta->addr);
+		printk(KERN_DEBUG "Rathan: %d", ETH_ALEN);
+		printk(KERN_DEBUG "Rathan: ptk key %*ph", sta->ptk[sta->ptk_idx]->conf.keylen, sta->ptk[sta->ptk_idx]->conf.key);
+		printk(KERN_DEBUG "Rathan: %u", sta->ptk[sta->ptk_idx]->conf.keylen);
+		printk(KERN_DEBUG "Rathan: current time period %lld", current_tp);
+		printk(KERN_DEBUG "Rathan: %zu", sizeof(current_tp));
+		
+		// Copy the MAC address to data
+		memcpy(data, sta->addr, ETH_ALEN);
+
+		// Copy the PTK key to data, after the MAC address
+		memcpy(data + ETH_ALEN, sta->ptk[sta->ptk_idx]->conf.key, sta->ptk[sta->ptk_idx]->conf.keylen);
+
+		// copy current_tp adjacet to the ptk key:
+		memcpy(data + ETH_ALEN + sta->ptk[sta->ptk_idx]->conf.keylen, &current_tp, sizeof(current_tp));
+
+		printk(KERN_DEBUG "Data: ");
+		for (i = 0; i < total_size; i++) {
+			printk(KERN_CONT "%02x", (unsigned char)data[i]);
+		}
+		printk(KERN_CONT "\n");
+	}
+	
+	
+	// Compute the hash
+	crypto_shash_digest(shash_desc, data, total_size, hash);
+
+	// Adjust the first byte of the hash to make it a valid MAC address
+	hash[0] = (hash[0] & 0xFC) | 0x02;  // Set bit-0 to 0 and bit-1 to 1
+
+	printk(KERN_DEBUG "Generated MAC address: ");
+	// Use the first 6 bytes of the hash as the MAC address
+	for (i = 0; i < MAC_ADDRESS_LENGTH; i++) {
+		printk(KERN_DEBUG "%02x:", hash[i]);
+	}
+	// Clean up
+	kfree(shash_desc);
+	crypto_free_shash(shash);
+	kfree(data);
+}
+
+void test_fun(struct sta_info *sta, int flag_addr, long long current_tp)
+{
+	struct ieee80211_key *key;
+
+	if (sta && (key = rcu_dereference(sta->ptk[sta->ptk_idx]))) {
+		//generate_mac_address(info, 1, current_tp);
+		//printk(KERN_DEBUG "Rathan: key is not null ");
+		//printk(KERN_DEBUG "Rathan: location of ptk %p ", sta->ptk[sta->ptk_idx]->conf.key);
+		//printk(KERN_DEBUG "Rathan: ptk length %d ", sta->ptk[sta->ptk_idx]->conf.keylen);
+		if (sta->sdata->vif.type == NL80211_IFTYPE_AP){
+			printk(KERN_DEBUG "Rathan: sta type AP\n");
+		}else if (sta->sdata->vif.type == NL80211_IFTYPE_STATION){
+			printk(KERN_DEBUG "Rathan: sta type STATION\n");
+		}else{
+			printk(KERN_DEBUG "Rathan: sta type UNKNOWN\n");
+		}
+		printk(KERN_DEBUG "Rathan: ptk is  %*ph ", sta->ptk[sta->ptk_idx]->conf.keylen, sta->ptk[sta->ptk_idx]->conf.key);
+	} else {
+		printk(KERN_DEBUG "Rathan: no ptk key is null ");
+	}
+}
 /*
  * Invoke TX handlers, return 0 on success and non-zero if the
  * frame was dropped or queued.
