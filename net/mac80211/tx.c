@@ -2013,6 +2013,7 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	skb = skb_peek(skbs);
 	fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
 
+	// use the similar code to copy mac address from one to another
 	/* printk(KERN_DEBUG "Rathan: frame control %x\n", fc);
 	memcpy(raddr1, ((struct ieee80211_hdr *)skb->data)->addr1, sizeof(raddr1));
 	printk(KERN_DEBUG "Rathan: destination addr %pM\n", raddr1);
@@ -2060,6 +2061,7 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 		break;
 	}
 
+	// use the below lines of code to change the mac address of the packet select the DA or the SA  according to the type of the station
 	/* //change mac address of skb to fixed mac address
 	memcpy(((struct ieee80211_hdr *)skb->data)->addr1, my_mac_address, ETH_ALEN);
 	printk(KERN_DEBUG "Rathan: destination changed to addr %pM\n", ((struct ieee80211_hdr *)skb->data)->addr1); */
@@ -2150,9 +2152,11 @@ void generate_mac_address(struct sta_info *sta, int flag_addr, long long int cur
 	int i;
 	char *data;
 	int total_size = MAC_ADDRESS_LENGTH + 16 + sizeof(current_tp);
-
 	// Assuming total_size is the sum of the lengths of the MAC address, the PTK key, and current_tp
 	
+	// As far now this function works well, we need to make changes that which base mac address is used to generate the random mac address 
+	// use flag_addr to determine the base mac address which is SA or the DA 
+
 	data = kmalloc(total_size, GFP_KERNEL);
 	if (!data) {
 		printk(KERN_ERR "Failed to allocate data\n");
@@ -2178,12 +2182,13 @@ void generate_mac_address(struct sta_info *sta, int flag_addr, long long int cur
 	printk(KERN_DEBUG "Rathan: hello");
 	// Concatenate the inputs
 	if (sta && (key = rcu_dereference(sta->ptk[sta->ptk_idx]))) {
-		printk(KERN_DEBUG "Rathan: mac address %pM", sta->addr);
+		//use these for debugging purpose
+		/* printk(KERN_DEBUG "Rathan: mac address %pM", sta->addr);
 		printk(KERN_DEBUG "Rathan: %d", ETH_ALEN);
 		printk(KERN_DEBUG "Rathan: ptk key %*ph", sta->ptk[sta->ptk_idx]->conf.keylen, sta->ptk[sta->ptk_idx]->conf.key);
 		printk(KERN_DEBUG "Rathan: %u", sta->ptk[sta->ptk_idx]->conf.keylen);
 		printk(KERN_DEBUG "Rathan: current time period %lld", current_tp);
-		printk(KERN_DEBUG "Rathan: %zu", sizeof(current_tp));
+		printk(KERN_DEBUG "Rathan: %zu", sizeof(current_tp)); */
 		
 		// Copy the MAC address to data
 		memcpy(data, sta->addr, ETH_ALEN);
@@ -2208,11 +2213,12 @@ void generate_mac_address(struct sta_info *sta, int flag_addr, long long int cur
 	// Adjust the first byte of the hash to make it a valid MAC address
 	hash[0] = (hash[0] & 0xFC) | 0x02;  // Set bit-0 to 0 and bit-1 to 1
 
-	printk(KERN_DEBUG "Generated MAC address: ");
+	//no need to print the generated mac address this is for debugging purpose
+	/* printk(KERN_DEBUG "Generated MAC address: ");
 	// Use the first 6 bytes of the hash as the MAC address
 	for (i = 0; i < MAC_ADDRESS_LENGTH; i++) {
 		printk(KERN_DEBUG "%02x:", hash[i]);
-	}
+	} */
 	//copy the generated mac address to the r_mac
 	memcpy(r_mac, hash, MAC_ADDRESS_LENGTH);
 	// Clean up
