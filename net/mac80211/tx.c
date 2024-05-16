@@ -47,7 +47,7 @@ int epoch_flag = 0;
 
 static void epoch_interval(void); // function declaration
 void test_fun(struct sta_info *sta, int flag_addr, long long current_tp);
-void generate_mac_address(struct sta_info *sta, int flag_addr, long long current_tp);
+void generate_mac_address(struct sta_info *sta, int flag_addr, long long current_tp, unsigned char *r_mac);
 
 #define LOG_FUNC printk(KERN_DEBUG "Rathan: %s function called\n", __func__)
 
@@ -1990,7 +1990,9 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	//u8 rkeylen = 16;
 	long long int current_tp;
 	//u8 my_mac_address[ETH_ALEN] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xab};
-	
+	unsigned char r_mac_address[ETH_ALEN];
+
+	//interval time period
 	current_tp = (ktime_get_real_seconds()/5);
 
 	//define some mac address 01:23:45:67:89:ab
@@ -2099,7 +2101,8 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 				//change RX, DA mac address to current randomized mac address 
 			}else{ 
 				//generate new randomized mac address 
-				generate_mac_address(sta, 1, current_tp);
+				generate_mac_address(sta, 1, current_tp, r_mac_address);
+				printk(KERN_DEBUG "Rathan: generated rand mac address %pM", r_mac_address);
 				//test_fun(sta, 1, current_tp);
 				//change RX, DA mac address to updated randomized mac address
 				//update the interval_tp to current_tp
@@ -2113,7 +2116,8 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 				//change TX, SA mac address to current randomized mac address 
 			}else{
 				//generate new randomized mac address 
-				generate_mac_address(sta, 1, current_tp);
+				generate_mac_address(sta, 1, current_tp, r_mac_address);
+				printk(KERN_DEBUG "Rathan: generated rand mac address %pM", r_mac_address);
 				//test_fun(sta, 1, current_tp);
 				//change TX, SA mac address to updated randomized mac address
 				//update the interval_tp to current_tp
@@ -2136,14 +2140,13 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	return result;
 }
 
-void generate_mac_address(struct sta_info *sta, int flag_addr, long long int current_tp) {
+void generate_mac_address(struct sta_info *sta, int flag_addr, long long int current_tp, unsigned char *r_mac) {
 	struct crypto_shash *shash;
 	struct shash_desc *shash_desc;
 	//struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
 	struct ieee80211_key *key;
 	//char data[MAC_ADDRESS_LENGTH + 16 + sizeof(current_tp)];  // Buffer for the data to be hashed
 	unsigned char hash[20];  // Buffer for the hash
-	//char *output_mac = kmalloc((MAC_ADDRESS_LENGTH * 3) + 1, GFP_KERNEL);  // Buffer for the output MAC address
 	int i;
 	char *data;
 	int total_size = MAC_ADDRESS_LENGTH + 16 + sizeof(current_tp);
@@ -2210,6 +2213,8 @@ void generate_mac_address(struct sta_info *sta, int flag_addr, long long int cur
 	for (i = 0; i < MAC_ADDRESS_LENGTH; i++) {
 		printk(KERN_DEBUG "%02x:", hash[i]);
 	}
+	//copy the generated mac address to the r_mac
+	memcpy(r_mac, hash, MAC_ADDRESS_LENGTH);
 	// Clean up
 	kfree(shash_desc);
 	crypto_free_shash(shash);
