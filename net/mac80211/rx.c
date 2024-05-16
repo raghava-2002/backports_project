@@ -32,6 +32,8 @@
 #include "wme.h"
 #include "rate.h"
 
+extern long long int interval_tp;
+
 static inline void ieee80211_rx_stats(struct net_device *dev, u32 len)
 {
 	struct pcpu_sw_netstats *tstats = this_cpu_ptr(netdev_tstats(dev));
@@ -4436,6 +4438,12 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	rx.local = local;
 	rx.napi = napi;
 
+	//this is the place where we can change the mac address of the packet back to the base mac
+
+	/* printk(KERN_DEBUG "Packet received\n");
+	printk(KERN_DEBUG "interval tp %lld", (long long int)interval_tp); */
+
+	
 	if (ieee80211_is_data(fc) || ieee80211_is_mgmt(fc))
 		I802_DEBUG_INC(local->dot11ReceivedFragmentCount);
 
