@@ -47,7 +47,7 @@ int epoch_flag = 0;
 
 static void epoch_interval(void); // function declaration
 void test_fun(struct sta_info *sta, int flag_addr, long long current_tp);
-void generate_mac_address(struct sta_info *sta, int flag_addr, long long current_tp, unsigned char *r_mac);
+void generate_mac_address(struct sk_buff *skb, struct sta_info *sta, int flag_addr, long long current_tp, unsigned char *r_mac);
 
 #define LOG_FUNC printk(KERN_DEBUG "Rathan: %s function called\n", __func__)
 
@@ -2066,6 +2066,11 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	memcpy(((struct ieee80211_hdr *)skb->data)->addr1, my_mac_address, ETH_ALEN);
 	printk(KERN_DEBUG "Rathan: destination changed to addr %pM\n", ((struct ieee80211_hdr *)skb->data)->addr1); */
 
+	//print the mac address of the packet to just know which is which
+	/* printk(KERN_DEBUG "Rathan: destination addr1 %pM\n", ((struct ieee80211_hdr *)skb->data)->addr1);
+	printk(KERN_DEBUG "Rathan: source addr2 %pM\n", ((struct ieee80211_hdr *)skb->data)->addr2);
+	printk(KERN_DEBUG "Rathan: bssid addr3 %pM\n", ((struct ieee80211_hdr *)skb->data)->addr3);
+	printk(KERN_DEBUG "Rathan: addr4 addr4 %pM\n", ((struct ieee80211_hdr *)skb->data)->addr4); */
 	/* if(sdata->keys[0]->conf.key != NULL){
 		//generate_mac_address(info, 1, current_tp);
 		printk(KERN_DEBUG "Rathan: key is not null ");
@@ -2101,14 +2106,13 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 			if(current_tp == interval_tp){
 				//printk(KERN_DEBUG "Rathan: current_tp is equal to interval_tp\n");
 				//change RX, DA mac address to current randomized mac address 
-			}else{ 
-				//generate new randomized mac address 
-				generate_mac_address(sta, 1, current_tp, r_mac_address);
-				printk(KERN_DEBUG "Rathan: generated rand mac address %pM", r_mac_address);
-				//test_fun(sta, 1, current_tp);
+			}else{
 				//change RX, DA mac address to updated randomized mac address
+				// so hdr->addr1 is the destination address is to be changed so flag_addr is 1
+				//generate new randomized mac address 
+				generate_mac_address(skb, sta, 1, current_tp, r_mac_address);
+				printk(KERN_DEBUG "Rathan: generated rand mac address %pM", r_mac_address);
 				//update the interval_tp to current_tp
-				//printk(KERN_DEBUG "Rathan: current_tp is not equal to interval_tp\n");
 				interval_tp = current_tp;
 			}
 		}else if (sta->sdata->vif.type == NL80211_IFTYPE_STATION){
@@ -2117,11 +2121,11 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 				//printk(KERN_DEBUG "Rathan: current_tp is equal to interval_tp\n");
 				//change TX, SA mac address to current randomized mac address 
 			}else{
-				//generate new randomized mac address 
-				generate_mac_address(sta, 1, current_tp, r_mac_address);
-				printk(KERN_DEBUG "Rathan: generated rand mac address %pM", r_mac_address);
-				//test_fun(sta, 1, current_tp);
 				//change TX, SA mac address to updated randomized mac address
+				// so hdr->addr2 is the source address is to be changed so flag_addr is 2
+				//generate new randomized mac address 
+				generate_mac_address(skb, sta, 2, current_tp, r_mac_address);
+				printk(KERN_DEBUG "Rathan: generated rand mac address %pM", r_mac_address);
 				//update the interval_tp to current_tp
 				interval_tp = current_tp;
 			}
@@ -2142,10 +2146,10 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	return result;
 }
 
-void generate_mac_address(struct sta_info *sta, int flag_addr, long long int current_tp, unsigned char *r_mac) {
+void generate_mac_address(struct sk_buff *skb, struct sta_info *sta, int flag_addr, long long int current_tp, unsigned char *r_mac) {
 	struct crypto_shash *shash;
 	struct shash_desc *shash_desc;
-	//struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_key *key;
 	//char data[MAC_ADDRESS_LENGTH + 16 + sizeof(current_tp)];  // Buffer for the data to be hashed
 	unsigned char hash[20];  // Buffer for the hash
@@ -2191,7 +2195,11 @@ void generate_mac_address(struct sta_info *sta, int flag_addr, long long int cur
 		printk(KERN_DEBUG "Rathan: %zu", sizeof(current_tp)); */
 		
 		// Copy the MAC address to data
-		memcpy(data, sta->addr, ETH_ALEN);
+		if (flag_addr == 1) {
+			memcpy(data, hdr->addr1, ETH_ALEN); // Use SA as the base MAC address
+		} else {
+			memcpy(data, hdr->addr2, ETH_ALEN); // Use DA as the base MAC address
+		}
 
 		// Copy the PTK key to data, after the MAC address
 		memcpy(data + ETH_ALEN, sta->ptk[sta->ptk_idx]->conf.key, sta->ptk[sta->ptk_idx]->conf.keylen);
