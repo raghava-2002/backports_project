@@ -35,13 +35,13 @@
 #include "wpa.h"
 #include "wme.h"
 #include "rate.h"
-//#include "mac_translation_table.h"
+#include "mac_translation_table.h"
 
  /* misc utils */
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
 #define MAC_ADDRESS_LENGTH 6 
-#define TABLE_SIZE 100
+
 
 long long int interval_tp; // epoch interval
 int epoch_flag = 0;
@@ -53,14 +53,6 @@ void generate_mac_address(struct sk_buff *skb, struct sta_info *sta, int flag_ad
 
 #define LOG_FUNC printk(KERN_DEBUG "Rathan: %s function called\n", __func__)
 
-//defintions for the functions to use translation table 
-void insert_entry(const unsigned char *base_mac, const unsigned char *random_mac);
-void update_entry_by_base(const unsigned char *base_mac, const unsigned char *new_random_mac);
-void update_entry_by_random(const unsigned char *random_mac, const unsigned char *new_base_mac);
-//const unsigned char *search_by_random_mac(const unsigned char* random_mac);
-//const unsigned char *search_by_base_mac(const unsigned char* base_mac);
-struct mac_translation_entry *search_by_random_mac(const unsigned char *random_mac);
-struct mac_translation_entry *search_by_base_mac(const unsigned char *base_mac);
 
 void epoch_interval(void){
 	if (!epoch_flag){
@@ -1978,126 +1970,6 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 }
 
 
-struct mac_translation_entry {
-    unsigned char base_mac[ETH_ALEN];
-    unsigned char random_mac[ETH_ALEN];
-    struct mac_translation_entry *next;
-};
-
-struct mac_translation_entry *translation_table[TABLE_SIZE] = { NULL }; // Global translation hash table
-
-// Hash function that combines the bytes of a MAC address
-unsigned int hash_function(const unsigned char *mac) {
-    unsigned int hash = 0;
-	int i;
-    for (i = 0; i < ETH_ALEN; i++) {
-        hash = (hash << 5) + mac[i]; // Rotate hash and add next byte
-    }
-    return hash % TABLE_SIZE; // Modulo to fit within table size
-}
-
-// Function to insert a new entry into the hash table
-void insert_entry(const unsigned char *base_mac, const unsigned char *random_mac) {
-    unsigned int index = hash_function(random_mac);
-    struct mac_translation_entry *new_entry = kmalloc(sizeof(struct mac_translation_entry), GFP_KERNEL);
-    if (new_entry == NULL) {
-        
-		// Handle memory allocation failure
-        printk(KERN_ERR "Failed to allocate memory for new entry\n");
-		return;
-    }
-    memcpy(new_entry->base_mac, base_mac, ETH_ALEN);
-    memcpy(new_entry->random_mac, random_mac, ETH_ALEN);
-    new_entry->next = translation_table[index];
-    translation_table[index] = new_entry;
-}
-
-
-void update_entry_by_base(const unsigned char *base_mac, const unsigned char *new_random_mac) {
-    struct mac_translation_entry *entry = search_by_base_mac(base_mac);
-    if (entry != NULL) {
-        // Entry with the specified base MAC address found, update its random MAC address
-        memcpy(entry->random_mac, new_random_mac, ETH_ALEN);
-    } else {
-        printk(KERN_DEBUG "Rathan: Entry with base MAC address not found.\n");
-    }
-}
-
-void update_entry_by_random(const unsigned char *random_mac, const unsigned char *new_base_mac) {
-    struct mac_translation_entry *entry = search_by_random_mac(random_mac);
-    if (entry != NULL) {
-        // Entry with the specified random MAC address found, update its base MAC address
-        memcpy(entry->base_mac, new_base_mac, ETH_ALEN);
-    } else {
-        printk(KERN_DEBUG "Rathan: Entry with random MAC address not found.\n");
-    }
-}
-
-// Function to perform a reverse search to find the base MAC address associated with a randomized MAC address
-/* const unsigned char *search_by_random_mac(const unsigned char *random_mac) {
-    unsigned int index = hash_function(random_mac);
-    struct mac_translation_entry *entry = translation_table[index];
-    while (entry != NULL) {
-        if (memcmp(entry->random_mac, random_mac, ETH_ALEN) == 0) {
-            return entry->base_mac; // Found matching entry
-        }
-        entry = entry->next;
-    }
-    return NULL; // Entry not found
-} */
-
-// Function to search for a randomized MAC address with base MAC address
-/* const unsigned char *search_by_base_mac(const unsigned char *base_mac) {
-	int i;
-    for (i = 0; i < TABLE_SIZE; i++) {
-        struct mac_translation_entry *entry = hash_table[i];
-        while (entry != NULL) {
-            if (memcmp(entry->base_mac, base_mac, ETH_ALEN) == 0) {
-                return entry->random_mac;
-            }
-            entry = entry->next;
-        }
-    }
-    return NULL;
-} */
-
-// Function to perform a reverse search to find the base MAC address associated with a randomized MAC address returns entry
-struct mac_translation_entry *search_by_random_mac(const unsigned char *random_mac) {
-    // Iterate over all entries in the translation table
-	unsigned int index;
-    for (index = 0; index < TABLE_SIZE; ++index) {
-        struct mac_translation_entry *entry = translation_table[index];
-        while (entry != NULL) {
-            if (memcmp(entry->random_mac, random_mac, ETH_ALEN) == 0) {
-                // Found the entry with the specified base MAC address
-                return entry;
-            }
-            entry = entry->next;
-        }
-    }
-
-    // Entry with the specified base MAC address not found
-    return NULL;
-}
-
-// Function to search for a randomized MAC address with base MAC address returns the entry
-struct mac_translation_entry *search_by_base_mac(const unsigned char *base_mac) {
-    // Iterate over all entries in the translation table
-	unsigned int index;
-    for (index = 0; index < TABLE_SIZE; ++index) {
-        struct mac_translation_entry *entry = translation_table[index];
-        while (entry != NULL) {
-            if (memcmp(entry->base_mac, base_mac, ETH_ALEN) == 0) {
-                // Found the entry with the specified base MAC address
-                return entry;
-            }
-            entry = entry->next;
-        }
-    }
-
-    // Entry with the specified base MAC address not found
-    return NULL;
-}
 
 
 /*
@@ -2120,6 +1992,7 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	//struct ieee80211_key *key;
 	struct ieee80211_hdr *hdr;
 	struct mac_translation_entry *entry;
+	struct mac_translation_entry *entry_update;
 	bool result = true;
 	__le16 fc;
 	//current time period 
@@ -2256,28 +2129,36 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 				 */
 				entry = search_by_base_mac(hdr->addr1);
 				if(entry != NULL){
+
+					printk(KERN_DEBUG "Rathan: AP case 1  pkt and Ap in same interval with has entry in the table");
 					//use randomized mac address from the table wrt to the base mac, change hdr->addr1 using memcpy
 					//uncomment below lines for actual useage
 					random_mac = entry->random_mac;
-					printk(KERN_DEBUG "Rathan: 1 randomized mac address %pM", random_mac);
+					printk(KERN_DEBUG "Rathan: randomized mac address %pM", random_mac);
+					printk(KERN_DEBUG "Rathan: base_mac %pM\n", entry->base_mac);
 					//memcpy(hdr->addr1, random_mac, ETH_ALEN);
 				}else{
+					printk(KERN_DEBUG "Rathan: AP case 2 pkt and Ap in same interval with no entry in the table");
 					//create new entry in the table with base mac address 
 					//and randomized mac address entry with same  base mac address
 					//use randomized mac address from the table wrt to the base mac address, change hdr->addr1 using memcpy
 					//uncomment below lines for actual useage
 					insert_entry(hdr->addr1, hdr->addr1);
 					random_mac = entry->random_mac;
-					printk(KERN_DEBUG "Rathan: 2 randomized mac address %pM", random_mac);
+					printk(KERN_DEBUG "Rathan: randomized mac address %pM", random_mac);
+					printk(KERN_DEBUG "Rathan: base_mac %pM\n", entry->base_mac);
 					//memcpy(hdr->addr1, random_mac, ETH_ALEN);
+					entry_update = search_by_base_mac(hdr->addr1);
+					printk(KERN_DEBUG "Rathan: after update randomized mac address %pM", entry_update->random_mac);
+					printk(KERN_DEBUG "Rathan: after update base_mac %pM\n", entry_update->base_mac);
 				}
 			}else{
 				//change RX, DA mac address to updated randomized mac address
 				// so hdr->addr1 is the destination address is to be changed so flag_addr is 1
 				//generate new randomized mac address 
 				//comment the below two lines for actual useage for the logic using table for AP
-				generate_mac_address(skb, sta, 1, current_tp, r_mac_address);
-				printk(KERN_DEBUG "Rathan: generated rand mac address %pM", r_mac_address);
+				/* generate_mac_address(skb, sta, 1, current_tp, r_mac_address);
+				printk(KERN_DEBUG "Rathan: generated rand mac address %pM", r_mac_address); */
 
 				/* 
 				if(hdr->addr1 (base mac address) is in the mac address transulation table){
@@ -2295,26 +2176,44 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 				 */
 				entry = search_by_base_mac(hdr->addr1);
 				if(entry != NULL){
+					printk(KERN_DEBUG "Rathan: AP case 3 pkt and Ap in different interval with has entry in the table");
 					//generate new randomized mac address by using the base mac address below lines does this thing
 					//we got the randomized mac address in r_mac_address update that in the transulation table wrt to the base mac address
 					//use randomized mac address from the table wrt to the base mac, change hdr->addr1 using memcpy
 					
 					//uncomment below lines for actual useage
 					generate_mac_address(skb, sta, 1, current_tp, r_mac_address);
+					printk(KERN_DEBUG "Rathan: before randomized mac address %pM", entry->random_mac);
+					printk(KERN_DEBUG "Rathan: before base_mac %pM\n", entry->base_mac);
 					update_entry_by_base(hdr->addr1, r_mac_address);
-					printk(KERN_DEBUG "Rathan: 3 randomized mac address %pM", r_mac_address);
 					//we can search in the table and use memcpy or we can directly use the r_mac_address
 					//memcpy(hdr->addr1, r_mac_address, ETH_ALEN);
+					//after update in the table 
+					entry_update = search_by_base_mac(hdr->addr1);
+					printk(KERN_DEBUG "Rathan: after update randomized mac address %pM", entry_update->random_mac);
+					printk(KERN_DEBUG "Rathan: after update base_mac %pM\n", entry_update->base_mac);
+
 				}else{
+					printk(KERN_DEBUG "Rathan: AP case 4 pkt and Ap in different interval with no entry in the table");
 					//create new entry in the table with base mac address 
 					//generate new randomized mac address by using the base mac address below lines does this thing
 					//we got the randomized mac address in r_mac_address update that in the transulation table wrt to the base mac address
 					//use randomized mac address from the table wrt to the base mac, change hdr->addr1 using memcpy
 					//uncomment below lines for actual useage
-					generate_mac_address(skb, sta, 1, current_tp, r_mac_address);
+					/* generate_mac_address(skb, sta, 1, current_tp, r_mac_address);
 					insert_entry(hdr->addr1, r_mac_address);
-					printk(KERN_DEBUG "Rathan: 4 randomized mac address %pM", r_mac_address);
+					printk(KERN_DEBUG "Rathan: 4 randomized mac address %pM", r_mac_address); */
 					//memcpy(hdr->addr1, r_mac_address, ETH_ALEN);
+
+
+					//trying some new logic here because since their is no entry in the table the station is new so we can directly use the r_mac_address
+					insert_entry(hdr->addr1, hdr->addr1);
+					random_mac = entry->random_mac;
+					printk(KERN_DEBUG "Rathan: before randomized mac address %pM", random_mac);
+					printk(KERN_DEBUG "Rathan: before base_mac %pM\n", entry->base_mac);
+					entry_update = search_by_base_mac(hdr->addr1);
+					printk(KERN_DEBUG "Rathan: after update randomized mac address %pM", entry_update->random_mac);
+					printk(KERN_DEBUG "Rathan: after update base_mac %pM\n", entry_update->base_mac);
 				}
 				//update the interval_tp to current_tp
 				interval_tp = current_tp;
@@ -2324,12 +2223,38 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 			if(current_tp == interval_tp){
 				//printk(KERN_DEBUG "Rathan: current_tp is equal to interval_tp\n");
 				//change TX, SA mac address to current randomized mac address 
+
+				/* 
+				if(hdr->addr2 (base mac address) is in the mac address pair){
+					use randomized mac address from the mac address pair wrt to the base mac, change hdr->addr2 using memcpy
+				}else{
+					create new entry in the mac address pair with base mac address
+					and randomized mac address entry with same  base mac address
+					use randomized mac address from the mac address pair wrt to the base mac address, change hdr->addr2 using memcpy
+				}
+
+				 */
 			}else{
 				//change TX, SA mac address to updated randomized mac address
 				// so hdr->addr2 is the source address is to be changed so flag_addr is 2
 				//generate new randomized mac address 
-				generate_mac_address(skb, sta, 2, current_tp, r_mac_address);
-				printk(KERN_DEBUG "Rathan: generated rand mac address %pM", r_mac_address);
+				//generate_mac_address(skb, sta, 2, current_tp, r_mac_address);
+				//printk(KERN_DEBUG "Rathan: generated rand mac address %pM", r_mac_address);
+
+				/* 
+				if(hdr->addr2 (base mac address) is in the mac address pair){
+					//generate new randomized mac address by using the base mac address below lines does this thing
+					generate_mac_address(skb, sta, 2, current_tp, r_mac_address);
+					we got the randomized mac address in r_mac_address update that in the mac address pair wrt to the base mac address
+					use randomized mac address from the mac address pair wrt to the base mac, change hdr->addr2 using memcpy
+				}else{
+					create new entry in the mac address pair with base mac address
+					//generate new randomized mac address by using the base mac address below lines does this thing
+					generate_mac_address(skb, sta, 2, current_tp, r_mac_address);
+					we got the randomized mac address in r_mac_address update that in the mac address pair wrt to the base mac address
+					use randomized mac address from the mac address pair wrt to the base mac, change hdr->addr2 using memcpy
+				
+				 */
 				//update the interval_tp to current_tp
 				interval_tp = current_tp;
 			}

@@ -8,6 +8,7 @@
         "codel.h": "c",
         "etherdevice.h": "c",
         "scatterlist.h": "c",
-        "driver-ops.h": "c"
+        "driver-ops.h": "c",
+        "led.h": "c"
     }
 }
