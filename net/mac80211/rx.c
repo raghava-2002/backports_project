@@ -31,6 +31,8 @@
 #include "tkip.h"
 #include "wme.h"
 #include "rate.h"
+#include "mac_translation_table.h"
+#include "mac_pair_station.h"
 
 extern long long int interval_tp;
 
@@ -4424,12 +4426,15 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 					 struct napi_struct *napi)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata, *sd;
 	struct ieee80211_hdr *hdr;
 	__le16 fc;
 	struct ieee80211_rx_data rx;
 	struct ieee80211_sub_if_data *prev;
 	struct rhlist_head *tmp;
+	const struct mac_pair *pair;
+	struct mac_translation_entry *entry;
+	struct ieee80211_rx_status *status;
 	int err = 0;
 
 	fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
@@ -4444,7 +4449,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	/* printk(KERN_DEBUG "Packet received\n");
 	printk(KERN_DEBUG "interval tp %lld", (long long int)interval_tp); */
 
-	
+
 	if (ieee80211_is_data(fc) || ieee80211_is_mgmt(fc))
 		I802_DEBUG_INC(local->dot11ReceivedFragmentCount);
 
@@ -4466,6 +4471,110 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	hdr = (struct ieee80211_hdr *)skb->data;
 	ieee80211_parse_qos(&rx);
 	ieee80211_verify_alignment(&rx);
+
+	//mac adress change logic goes here
+
+
+
+	// Initial debug prints to track packet addresses
+    /* printk(KERN_DEBUG "Rathan: Initial addr1 %pM\n", hdr->addr1);
+    printk(KERN_DEBUG "Rathan: Initial addr2 %pM\n", hdr->addr2);
+    printk(KERN_DEBUG "Rathan: Initial addr3 %pM\n", hdr->addr3);
+ */
+/* 	// check SA and bssid is same or not 
+	if (memcmp(hdr->addr2, hdr->addr3, ETH_ALEN) == 0) {
+		// SA and BSSID are the same Ap is sending the packet
+		// handle the case when SA and BSSID are the same
+		if (!ieee80211_is_mgmt(fc)) {
+			// Packet is not a management frame
+			// Add your code here to handle non-management frames
+			entry = search_by_random_mac(hdr->addr1);
+			if (entry != NULL) {
+				
+				printk(KERN_DEBUG "Rx.c: 2 pkt %pM\n", hdr->addr1);
+				printk(KERN_DEBUG "Rx.c: 2 found mac %pM\n", entry->base_mac);
+				memcpy(hdr->addr1, entry->base_mac, ETH_ALEN);
+				printk(KERN_DEBUG "Rx.c: 2 after %pM\n", hdr->addr1);
+				print_mac_translation_table();
+			} else {
+				printk(KERN_DEBUG "2 Base mac address not found\n");
+				//print_mac_translation_table();
+			}
+		}
+	} else {
+		// SA and BSSID are different
+		// handle the case when SA and BSSID are different
+		if (!ieee80211_is_mgmt(fc)) {
+			pair = search_by_current_random_mac(hdr->addr2);
+			printk(KERN_DEBUG "rx: sta  addr1 %pM\n", hdr->addr1);
+			printk(KERN_DEBUG "rx: sta addr2 %pM\n", hdr->addr2);
+			printk(KERN_DEBUG "rx: sta addr3 %pM\n", hdr->addr3);
+			printk(KERN_DEBUG "rx: sta fc %d\n", fc);
+			if (pair != NULL) {
+				//printk(KERN_DEBUG "Base mac address found\n");
+				//printk(KERN_DEBUG "Base mac address %pM\n", base_mac);
+				printk(KERN_DEBUG "Rathan: 1 before %pM\n", hdr->addr2);
+				printk(KERN_DEBUG "Rathan: 1 found mac %pM\n", pair->s_base_mac);
+				memcpy(hdr->addr2, pair->s_base_mac, ETH_ALEN);
+				printk(KERN_DEBUG "Rathan: 1 after %pM\n", hdr->addr2);
+				print_mac_pair(pair);
+			} else {
+				printk(KERN_DEBUG "1 Base mac address not found\n");
+			}
+		}
+	} */
+
+	/* printk(KERN_DEBUG "Rathan: Final addr1 %pM\n", hdr->addr1);
+    printk(KERN_DEBUG "Rathan: Final addr2 %pM\n", hdr->addr2);
+    printk(KERN_DEBUG "Rathan: Final addr3 %pM\n", hdr->addr3);
+ */
+	
+/* 	if (memcmp(hdr->addr2, hdr->addr3, ETH_ALEN) == 0) {
+		// SA and BSSID are the same Ap is sending the packet
+		// handle the case when SA and BSSID are the same
+		if (!ieee80211_is_mgmt(fc)) {
+			printk(KERN_DEBUG "ap packet");
+		}
+	} else {
+		// SA and BSSID are different
+		// handle the case when SA and BSSID are different
+		printk(KERN_DEBUG "sta packet");
+	} */
+
+	
+	
+	
+	if (ieee80211_is_deauth(fc)) {
+            printk(KERN_INFO "Processing Deauthentication frame\n");
+            
+            // Additional processing for deauthentication frame
+    }
+
+	status = IEEE80211_SKB_RXCB(skb);
+	sd = status->sdata;
+
+	if (sd != NULL) {
+    // Check the interface type
+		switch (sd->vif.type) {
+		case NL80211_IFTYPE_AP:
+			// Interface is an Access Point
+			printk(KERN_INFO "Packet processed on AP interface\n");
+			break;
+		case NL80211_IFTYPE_STATION:
+			// Interface is a Station
+			printk(KERN_INFO "Packet processed on STA interface\n");
+			break;
+		// Add other cases as needed
+		default:
+			printk(KERN_INFO "Packet processed on other interface type: %d\n", sdata->vif.type);
+			break;
+		}
+	}else {
+		printk(KERN_INFO "sdata is null\n");
+	}
+
+
+
 
 	if (unlikely(ieee80211_is_probe_resp(hdr->frame_control) ||
 		     ieee80211_is_beacon(hdr->frame_control)))

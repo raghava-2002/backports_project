@@ -5593,6 +5593,10 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 					    req->reason_code);
 		return 0;
 	}
+	//here station is deautencited by local choice so, here from AP MAT table delete the entry of station,
+	//delete the entry from the station mac pair 
+
+	printk(KERN_INFO "Rathan: omitted %pM", req->bssid);
 
 	return -ENOTCONN;
 }

@@ -33,7 +33,8 @@ mac80211-y := \
 	trace.o mlme.o \
 	tdls.o \
 	ocb.o \
-	mac_translation_table.o #Added this line for AP mode MAT table(MAC Address Translation)
+	mac_translation_table.o \
+	mac_pair_station.o
 
 mac80211-$(CPTCFG_MAC80211_LEDS) += led.o
 mac80211-$(CPTCFG_MAC80211_DEBUGFS) += \

@@ -39,7 +39,7 @@ void update_entry_by_base(const unsigned char *base_mac, const unsigned char *ne
         // Entry with the specified base MAC address found, update its random MAC address
         memcpy(entry->random_mac, new_random_mac, ETH_ALEN);
     } else {
-        printk(KERN_DEBUG "Rathan: Entry with base MAC address not found.\n");
+        printk(KERN_DEBUG "Rathan: MAT b Entry with base MAC address not found.\n");
     }
 }
 
@@ -49,7 +49,7 @@ void update_entry_by_random(const unsigned char *random_mac, const unsigned char
         // Entry with the specified random MAC address found, update its base MAC address
         memcpy(entry->base_mac, new_base_mac, ETH_ALEN);
     } else {
-        printk(KERN_DEBUG "Rathan: Entry with random MAC address not found.\n");
+        printk(KERN_DEBUG "Rathan: MAT r Entry with random MAC address not found.\n");
     }
 }
 
@@ -91,3 +91,14 @@ struct mac_translation_entry *search_by_base_mac(const unsigned char *base_mac) 
     return NULL;
 }
 
+void print_mac_translation_table(void) {
+    int i;
+    printk(KERN_DEBUG "Rathan: Printing MAC translation table:\n");
+    for (i = 0; i < TABLE_SIZE; ++i) {
+        struct mac_translation_entry *entry = translation_table[i];
+        while (entry != NULL) {
+            printk(KERN_DEBUG "Rathan: Base MAC: %pM, Random MAC: %pM\n", entry->base_mac, entry->random_mac);
+            entry = entry->next;
+        }
+    }
+}

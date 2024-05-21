@@ -9,6 +9,7 @@
         "etherdevice.h": "c",
         "scatterlist.h": "c",
         "driver-ops.h": "c",
-        "led.h": "c"
+        "led.h": "c",
+        "kernel.h": "c"
     }
 }
