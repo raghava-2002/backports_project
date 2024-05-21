@@ -10,6 +10,7 @@
         "scatterlist.h": "c",
         "driver-ops.h": "c",
         "led.h": "c",
-        "kernel.h": "c"
+        "kernel.h": "c",
+        "type_traits": "c"
     }
 }

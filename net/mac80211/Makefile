@@ -34,7 +34,8 @@ mac80211-y := \
 	tdls.o \
 	ocb.o \
 	mac_translation_table.o \
-	mac_pair_station.o
+	mac_pair_station.o \
+	rathan_flags.o
 
 mac80211-$(CPTCFG_MAC80211_LEDS) += led.o
 mac80211-$(CPTCFG_MAC80211_DEBUGFS) += \

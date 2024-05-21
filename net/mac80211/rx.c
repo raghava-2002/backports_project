@@ -33,8 +33,12 @@
 #include "rate.h"
 #include "mac_translation_table.h"
 #include "mac_pair_station.h"
+#include "rathan_flags.h"
 
 extern long long int interval_tp;
+
+
+#define LOG_FUNC printk(KERN_DEBUG "Rathan: %s function called\n", __func__)
 
 static inline void ieee80211_rx_stats(struct net_device *dev, u32 len)
 {
@@ -1748,6 +1752,8 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	int i;
+
+	//printk(KERN_DEBUG "packet recived to sta");
 
 	if (!sta)
 		return RX_CONTINUE;
@@ -4434,7 +4440,6 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	struct rhlist_head *tmp;
 	const struct mac_pair *pair;
 	struct mac_translation_entry *entry;
-	struct ieee80211_rx_status *status;
 	int err = 0;
 
 	fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
@@ -4474,6 +4479,22 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 
 	//mac adress change logic goes here
 
+	//print bool is_running_on_ap 
+	
+	if (packet_sent_from_ap) {
+        // Packet was sent from AP
+        printk(KERN_DEBUG "Packet processed on AP interface\n");
+    } else if (packet_sent_from_sta){
+        // Packet was sent from STA
+        printk(KERN_DEBUG "Packet processed on STA interface\n");
+    }
+
+	/* if (rx.sdata != NULL) {
+		printk(KERN_DEBUG "rx has something");
+	} else 
+	{
+		printk(KERN_DEBUG "rx is NULL\n");
+	} */
 
 
 	// Initial debug prints to track packet addresses
@@ -4549,29 +4570,6 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
             
             // Additional processing for deauthentication frame
     }
-
-	status = IEEE80211_SKB_RXCB(skb);
-	sd = status->sdata;
-
-	if (sd != NULL) {
-    // Check the interface type
-		switch (sd->vif.type) {
-		case NL80211_IFTYPE_AP:
-			// Interface is an Access Point
-			printk(KERN_INFO "Packet processed on AP interface\n");
-			break;
-		case NL80211_IFTYPE_STATION:
-			// Interface is a Station
-			printk(KERN_INFO "Packet processed on STA interface\n");
-			break;
-		// Add other cases as needed
-		default:
-			printk(KERN_INFO "Packet processed on other interface type: %d\n", sdata->vif.type);
-			break;
-		}
-	}else {
-		printk(KERN_INFO "sdata is null\n");
-	}
 
 
 

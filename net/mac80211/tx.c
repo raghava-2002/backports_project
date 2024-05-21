@@ -37,6 +37,7 @@
 #include "rate.h"
 #include "mac_translation_table.h"
 #include "mac_pair_station.h"
+#include "rathan_flags.h"
 
  /* misc utils */
 #include <linux/crypto.h>
@@ -2077,44 +2078,20 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 
 
 
-
-	// use the below lines of code to change the mac address of the packet select the DA or the SA  according to the type of the station
-	/* //change mac address of skb to fixed mac address
-	memcpy(((struct ieee80211_hdr *)skb->data)->addr1, my_mac_address, ETH_ALEN);
-	printk(KERN_DEBUG "Rathan: destination changed to addr %pM\n", ((struct ieee80211_hdr *)skb->data)->addr1); */
-
-	//print the mac address of the packet to just know which is which
-	/* printk(KERN_DEBUG "Rathan: destination addr1 %pM\n", ((struct ieee80211_hdr *)skb->data)->addr1);
-	printk(KERN_DEBUG "Rathan: source addr2 %pM\n", ((struct ieee80211_hdr *)skb->data)->addr2);
-	printk(KERN_DEBUG "Rathan: bssid addr3 %pM\n", ((struct ieee80211_hdr *)skb->data)->addr3);
-	printk(KERN_DEBUG "Rathan: addr4 addr4 %pM\n", ((struct ieee80211_hdr *)skb->data)->addr4); */
-	/* if(sdata->keys[0]->conf.key != NULL){
-		//generate_mac_address(info, 1, current_tp);
-		printk(KERN_DEBUG "Rathan: key is not null ");
-		
-	}else{
-		printk(KERN_DEBUG "Rathan: key is null ");
-	} */
-
-	//acessing the ptk key
-	/* if (sta && (key = rcu_dereference(sta->ptk[sta->ptk_idx]))) {
-		//generate_mac_address(info, 1, current_tp);
-		//printk(KERN_DEBUG "Rathan: key is not null ");
-		//printk(KERN_DEBUG "Rathan: location of ptk %p ", sta->ptk[sta->ptk_idx]->conf.key);
-		//printk(KERN_DEBUG "Rathan: ptk length %d ", sta->ptk[sta->ptk_idx]->conf.keylen);
+	if (sta != NULL){
 		if (sta->sdata->vif.type == NL80211_IFTYPE_AP){
-			printk(KERN_DEBUG "Rathan: sta type AP\n");
+			packet_sent_from_ap = true;
+			
+			printk(KERN_DEBUG "packet sent from Ap is set\n");
 		}else if (sta->sdata->vif.type == NL80211_IFTYPE_STATION){
-			printk(KERN_DEBUG "Rathan: sta type STATION\n");
-		}else{
-			printk(KERN_DEBUG "Rathan: sta type UNKNOWN\n");
+			packet_sent_from_sta = true;
+			
+			printk(KERN_DEBUG "packet sent from station is set\n");
 		}
-		printk(KERN_DEBUG "Rathan: ptk is  %*ph ", sta->ptk[sta->ptk_idx]->conf.keylen, sta->ptk[sta->ptk_idx]->conf.key);
-	} else {
-		printk(KERN_DEBUG "Rathan: no ptk key is null ");
-	} */
-	/* printk(KERN_DEBUG "Rathan: current time period %lld\n", current_tp);
-	printk(KERN_DEBUG "Rathan: interval time period %lld\n", interval_tp); */
+	}
+	
+
+
 /*
 	if(sta != NULL){
 		if (sta->sdata->vif.type == NL80211_IFTYPE_AP){
