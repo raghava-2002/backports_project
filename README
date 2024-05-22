@@ -1,0 +1,28 @@
+
+# Backports Project
+
+This project implements a MAC address re-randomization in a wireless network. The functionality allows for efficient management and translation of MAC addresses for security and privacy purposes.
+
+## System Requirements
+
+- **Operating System**: Ubuntu 20.04-6 LTS
+- **Kernel Version**: 5.4.0-177-generic x86_64
+- **Compiler**: GCC 9.4.0
+- **Make**: GNU Make 4.2.1
+- **Backports Version**: backports-5.4.56-1
+
+## Installation Instructions
+
+1. **Clone the Repository**:
+   ```sh
+   git clone https://github.com/raghava-2002/backports_project.git
+   cd backports-project
+
+## Build and install
+
+    make defconfig-wifi
+    make
+    sudo make install
+
+
+
