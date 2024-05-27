@@ -17,7 +17,7 @@ void update_entry_by_random(const unsigned char *random_mac, const unsigned char
 struct mac_translation_entry *search_by_random_mac(const unsigned char *random_mac);
 struct mac_translation_entry *search_by_base_mac(const unsigned char *base_mac);
 void print_mac_translation_table(void);  // Declaration of the print function
-
+void delete_entry(const unsigned char *random_mac);
 
 
 #endif /* MAC_TRANSLATION_TABLE_H */

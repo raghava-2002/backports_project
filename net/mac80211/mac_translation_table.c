@@ -102,3 +102,34 @@ void print_mac_translation_table(void) {
         }
     }
 }
+
+// Function to delete an entry from the hash table
+void delete_entry(const unsigned char *random_mac) {
+    unsigned int index = hash_function(random_mac);
+    struct mac_translation_entry *prev_entry = NULL;
+    struct mac_translation_entry *entry = translation_table[index];
+    
+    // Traverse the linked list at the index
+    while (entry != NULL) {
+        if (memcmp(entry->random_mac, random_mac, ETH_ALEN) == 0) {
+            // Found the entry with the specified random MAC address
+            if (prev_entry == NULL) {
+                // Entry is the first node in the linked list
+                translation_table[index] = entry->next;
+            } else {
+                // Entry is not the first node, update the previous node's next pointer
+                prev_entry->next = entry->next;
+            }
+            
+            // Free the memory allocated for the entry
+            kfree(entry);
+            
+            return;
+        }
+        
+        prev_entry = entry;
+        entry = entry->next;
+    }
+    
+    printk(KERN_DEBUG "Rathan: MAT d Entry with random MAC address not found.\n");
+}
