@@ -4667,12 +4667,13 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	printk(KERN_DEBUG " addr2 %pM\n", hdr->addr2);
 	printk(KERN_DEBUG " addr3 %pM\n", hdr->addr3);
 	printk(KERN_DEBUG " addr4 %pM\n", hdr->addr4); */
+
 	type = (fc & IEEE80211_FCTL_FTYPE) >> 2;
     subtype = (fc & IEEE80211_FCTL_STYPE) >> 4;
 	
 	// identify the instance running on the AP or STA
-	if ((dev != NULL) && (!ieee80211_is_mgmt(fc))) {
-		printk(KERN_DEBUG "dev is not null\n");
+	/* if ((dev != NULL) && (!ieee80211_is_mgmt(fc))) {
+		//printk(KERN_DEBUG "dev is not null\n");
 		if (dev->ieee80211_ptr != NULL){
 			//printk(KERN_DEBUG "dev->ieee80211_ptr is not null\n");
 			printk(KERN_DEBUG " packet received");
@@ -4695,7 +4696,40 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		}
 	}else {
 		//printk(KERN_DEBUG "dev is null\n");
+	} */
+
+
+	//MAT table debugging here
+
+
+	if ((dev != NULL) && (!ieee80211_is_mgmt(fc))) {
+		//printk(KERN_DEBUG "dev is not null\n");
+		if (dev->ieee80211_ptr != NULL){
+			//printk(KERN_DEBUG "dev->ieee80211_ptr is not null\n");
+			/* printk(KERN_DEBUG " packet received");
+			printk(KERN_DEBUG " addr1 %pM\n", hdr->addr1);
+			printk(KERN_DEBUG " addr2 %pM\n", hdr->addr2);
+			printk(KERN_DEBUG " addr3 %pM\n", hdr->addr3);
+			printk(KERN_DEBUG " addr4 %pM\n", hdr->addr4); 
+			printk(KERN_DEBUG "Type: %u, Subtype: %u\n", type, subtype); */
+			if (dev->ieee80211_ptr->iftype == NL80211_IFTYPE_AP) {
+				printk(KERN_DEBUG "Actuall Station instance\n");
+				//this is because the packet is sent from the AP we extracted the flag from the packet itself
+				print_mac_pair();
+
+			} else if (dev->ieee80211_ptr->iftype == NL80211_IFTYPE_STATION) {
+				printk(KERN_DEBUG "Actual Ap instance\n");
+				//print_mac_translation_table();
+			} else {
+				printk(KERN_DEBUG "Running on other instance\n");
+			}
+		}else { 
+			printk(KERN_DEBUG "dev->ieee80211_ptr is null");
+		}
+	}else {
+		//printk(KERN_DEBUG "dev is null\n");
 	}
+
 
 
 	if (unlikely(ieee80211_is_probe_resp(hdr->frame_control) ||

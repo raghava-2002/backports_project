@@ -16,6 +16,7 @@ void set_mac_pair(const unsigned char *base_mac, const unsigned char *random_mac
     if (!station_mac_pair) {
         station_mac_pair = kmalloc(sizeof(struct mac_pair), GFP_KERNEL);
         if (!station_mac_pair) {
+            spin_unlock_irqrestore(&mac_pair_lock, flags);
             printk(KERN_ALERT "Rathan: Failed to allocate memory for MAC pair\n");
             return;
         }
@@ -28,17 +29,19 @@ void set_mac_pair(const unsigned char *base_mac, const unsigned char *random_mac
     printk(KERN_DEBUG "Rathan: MAC pair set - Base MAC: %pM, Random MAC: %pM\n", station_mac_pair->s_base_mac, station_mac_pair->current_random_mac);
 }
 
-void get_mac_pair(struct mac_pair *pair) {
+const struct mac_pair* get_mac_pair(void) {
     unsigned long flags;
 
+    const struct mac_pair *pair = NULL;
     spin_lock_irqsave(&mac_pair_lock, flags);
 
     if (station_mac_pair) {
-        memcpy(pair->s_base_mac, station_mac_pair->s_base_mac, ETH_ALEN);
-        memcpy(pair->current_random_mac, station_mac_pair->current_random_mac, ETH_ALEN);
+        pair = station_mac_pair;
     }
-
+    printk(KERN_DEBUG "Rathan: MAC Pair - Base MAC: %pM, Random MAC: %pM\n", pair->s_base_mac, pair->current_random_mac);
     spin_unlock_irqrestore(&mac_pair_lock, flags);
+
+    return pair;
 }
 
 
@@ -54,8 +57,20 @@ void update_current_random_mac(const unsigned char *base_mac, const unsigned cha
     spin_unlock_irqrestore(&mac_pair_lock, flags);
 }
 
-void print_mac_pair(const struct mac_pair *pair) {
-    if (pair) {
-        printk(KERN_DEBUG "Rathan: MAC Pair - Base MAC: %pM, Random MAC: %pM\n", pair->s_base_mac, pair->current_random_mac);
+
+//write a function to print the mac pair
+
+
+
+
+
+void print_mac_pair(void) {
+    unsigned long flags;
+    spin_lock_irqsave(&mac_pair_lock, flags);
+    if (station_mac_pair) {
+        printk(KERN_DEBUG "Rathan: MAC Pair - Base MAC: %pM, Random MAC: %pM\n", station_mac_pair->s_base_mac, station_mac_pair->current_random_mac);
+    } else {
+        printk(KERN_DEBUG "Rathan: MAC Pair is empty\n");
     }
+    spin_unlock_irqrestore(&mac_pair_lock, flags);
 }
