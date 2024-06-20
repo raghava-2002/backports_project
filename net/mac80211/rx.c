@@ -803,7 +803,9 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 
 	//LOG_FUNC;
 
-    // Log the device name
+	// remove the stuff here and change to the __ieee80211_rx_handle_packet for MAT functionality
+    
+	// Log the device name
     //printk(KERN_INFO "Device name: %s\n", wiphy_name(wiphy));
 
 

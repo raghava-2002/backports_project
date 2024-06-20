@@ -2180,6 +2180,7 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 		}
 	} */
 
+	//to check wheather we are on same or different instance 
 	if (local){
 		instance_type = which_instance(local);
 	}

@@ -26,3 +26,9 @@ This project implements a MAC address re-randomization in a wireless network. Th
 
 
 
+## Make use of support folder for this backport project 
+
+    use script.sh to know more about it 
+    this folder contains hostapd and wpa supplicant also 
+   
+    ./script.sh
