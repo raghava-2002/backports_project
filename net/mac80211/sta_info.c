@@ -307,7 +307,14 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_hw *hw = &local->hw;
 	struct sta_info *sta;
+	struct timespec64 ts;
 	int i;
+
+	
+	/* printk(KERN_DEBUG "Station is created\n");
+	ktime_get_real_ts64(&ts);
+    sdata->start_time_period = ts.tv_sec / 5;
+	printk(KERN_DEBUG "Station start time period: %lld\n", sdata->start_time_period); */
 
 	sta = kzalloc(sizeof(*sta) + hw->sta_data_size, gfp);
 	if (!sta)
@@ -319,6 +326,10 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		if (!sta->pcpu_rx_stats)
 			goto free;
 	}
+
+	ktime_get_real_ts64(&ts);
+    sta->start_time_period = ts.tv_sec / 5;
+	printk(KERN_DEBUG "Station start time period: %lld\n", sta->start_time_period);
 
 	spin_lock_init(&sta->lock);
 	spin_lock_init(&sta->ps_lock);

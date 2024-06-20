@@ -974,6 +974,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_local *local = sdata->local;
 	struct beacon_data *old;
 	struct ieee80211_sub_if_data *vlan;
+	struct timespec64 ts;
 	u32 changed = BSS_CHANGED_BEACON_INT |
 		      BSS_CHANGED_BEACON_ENABLED |
 		      BSS_CHANGED_BEACON |
@@ -986,6 +987,11 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	int prev_beacon_int;
 
 	old = sdata_dereference(sdata->u.ap.beacon, sdata);
+	
+	printk(KERN_DEBUG "Ap created\n");
+	ktime_get_real_ts64(&ts);
+    sdata->start_time_period = ts.tv_sec / 5;
+	printk(KERN_DEBUG "start time period %lld", sdata->start_time_period);
 	if (old)
 		return -EALREADY;
 

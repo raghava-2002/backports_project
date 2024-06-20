@@ -11,6 +11,7 @@
         "driver-ops.h": "c",
         "led.h": "c",
         "kernel.h": "c",
-        "type_traits": "c"
+        "type_traits": "c",
+        "ieee80211_i.h": "c"
     }
 }

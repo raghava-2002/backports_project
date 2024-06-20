@@ -779,6 +779,7 @@ static int ieee80211_open(struct net_device *dev)
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	int err;
 
+	//printk(KERN_DEBUG "Interfaces created\n");
 	/* fail early if user set an invalid address */
 	if (!is_valid_ether_addr(dev->dev_addr))
 		return -EADDRNOTAVAIL;

@@ -37,7 +37,8 @@
 #include "rate.h"
 #include "mac_translation_table.h"
 #include "mac_pair_station.h"
-#include "rathan_flags.h"
+#include "rathan_debug.h"
+#include "mac_add_gen.h"
 
  /* misc utils */
 #include <linux/crypto.h>
@@ -46,12 +47,13 @@
 
 
 long long int interval_tp; // epoch interval
+long long int interval_tp1; // for sta instance
 int epoch_flag = 0;
 // char *output_mac;
 
 static void epoch_interval(void); // function declaration
 void test_fun(struct sta_info *sta, int flag_addr, long long current_tp);
-void generate_mac_address(struct sk_buff *skb, struct sta_info *sta, int flag_addr, long long current_tp, unsigned char *r_mac);
+//void generate_mac_address(struct sk_buff *skb, struct sta_info *sta, int flag_addr, long long current_tp, unsigned char *r_mac);
 
 #define LOG_FUNC printk(KERN_DEBUG "Rathan: %s function called\n", __func__)
 
@@ -59,6 +61,7 @@ void generate_mac_address(struct sk_buff *skb, struct sta_info *sta, int flag_ad
 void epoch_interval(void){
 	if (!epoch_flag){
 		interval_tp = (ktime_get_real_seconds() / 5);
+		interval_tp1 = (ktime_get_real_seconds() / 5);
 		epoch_flag = 1;
 	}
 }
@@ -632,6 +635,23 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 		return TX_CONTINUE;
 	}
 
+	/* if ((tx->sdata->vif.type == NL80211_IFTYPE_AP)){
+
+		printk(KERN_DEBUG "Rathan: AP mode\n");
+	}else if ((tx->sdata->vif.type == NL80211_IFTYPE_STATION)){
+		//printk(KERN_DEBUG "Rathan: STA mode\n");
+	}else {
+		printk(KERN_DEBUG "Rathan: unknown mode\n");
+	} */
+	
+	/* printk(KERN_DEBUG "Rathan: addr1 = %pM\n", hdr->addr1);
+	printk(KERN_DEBUG "Rathan: addr2 = %pM\n", hdr->addr2);
+	printk(KERN_DEBUG "Rathan: addr3 = %pM\n", hdr->addr3);
+	printk(KERN_DEBUG "Rathan: addr4 = %pM\n", hdr->addr4); */
+	
+	
+
+	
 	if (tx->sta &&
 	    (key = rcu_dereference(tx->sta->ptk[tx->sta->ptk_idx]))){
 		tx->key = key;
@@ -647,6 +667,7 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 		*/
 		//print frame control
 		//printk(KERN_DEBUG "Rathan: frame control = %04x\n", hdr->frame_control);
+		//printk(KERN_DEBUG "Rathan: ptk content value = %*ph", tx->key->conf.keylen, tx->key->conf.key);
 		}
 	else if (ieee80211_is_group_privacy_action(tx->skb) &&
 		(key = rcu_dereference(tx->sdata->default_multicast_key))){
@@ -663,7 +684,9 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 	else if (is_multicast_ether_addr(hdr->addr1) &&
 		 (key = rcu_dereference(tx->sdata->default_multicast_key))){
 		tx->key = key;
-		//printk(KERN_DEBUG "Rathan: multicast key is used  %p", tx->key);
+		/* printk(KERN_DEBUG "RATHAN: %pM is multicast address\n", hdr->addr1);
+		printk(KERN_DEBUG "Rathan: multicast key is used  %p", tx->key);
+		printk(KERN_DEBUG "Rathan: ptk content value = %*ph", tx->key->conf.keylen, tx->key->conf.key); */
 		}
 	else if (!is_multicast_ether_addr(hdr->addr1) && 
 		 (key = rcu_dereference(tx->sdata->default_unicast_key))){
@@ -675,18 +698,20 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 		//printk(KERN_DEBUG "Rathan: nothing worked tx->key = NULL\n");
 	}
 
+	
 	if (tx->key) {
 		bool skip_hw = false;
 
 		/* TODO: add threshold stuff again */
-
+		//printk(KERN_DEBUG "Rathan: 1 debug ap mode");
 		switch (tx->key->conf.cipher) {
 		case WLAN_CIPHER_SUITE_WEP40:
 		case WLAN_CIPHER_SUITE_WEP104:
 		case WLAN_CIPHER_SUITE_TKIP:
-			if (!ieee80211_is_data_present(hdr->frame_control))
+			if (!ieee80211_is_data_present(hdr->frame_control)){
 				tx->key = NULL;
-			break;
+				//printk(KERN_DEBUG "Rathan: 2 debug ap mode");
+			}break;
 		case WLAN_CIPHER_SUITE_CCMP:
 		case WLAN_CIPHER_SUITE_CCMP_256:
 		case WLAN_CIPHER_SUITE_GCMP:
@@ -694,20 +719,23 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 			if (!ieee80211_is_data_present(hdr->frame_control) &&
 			    !ieee80211_use_mfp(hdr->frame_control, tx->sta,
 					       tx->skb) &&
-			    !ieee80211_is_group_privacy_action(tx->skb))
+			    !ieee80211_is_group_privacy_action(tx->skb)){
 				tx->key = NULL;
-			else
+				//printk(KERN_DEBUG "Rathan: 3 debug ap mode");
+			}else{
 				skip_hw = (tx->key->conf.flags &
 					   IEEE80211_KEY_FLAG_SW_MGMT_TX) &&
 					ieee80211_is_mgmt(hdr->frame_control);
-			break;
+				//printk(KERN_DEBUG "Rathan: 4 debug ap mode");
+			}break;
 		case WLAN_CIPHER_SUITE_AES_CMAC:
 		case WLAN_CIPHER_SUITE_BIP_CMAC_256:
 		case WLAN_CIPHER_SUITE_BIP_GMAC_128:
 		case WLAN_CIPHER_SUITE_BIP_GMAC_256:
-			if (!ieee80211_is_mgmt(hdr->frame_control))
+			if (!ieee80211_is_mgmt(hdr->frame_control)){
 				tx->key = NULL;
-			break;
+				//printk(KERN_DEBUG "Rathan: 5 debug ap mode");
+			}break;
 		}
 
 		if (unlikely(tx->key && tx->key->flags & KEY_FLAG_TAINTED &&
@@ -720,6 +748,7 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 	} else if (!ieee80211_is_mgmt(hdr->frame_control) && tx->sta &&
 		   test_sta_flag(tx->sta, WLAN_STA_USES_ENCRYPTION)) {
 		//printk(KERN_DEBUG "Rathan: no key found but sta uses encryption\n");
+		//printk(KERN_DEBUG "Rathan: 6 debug ap mode");
 		return TX_DROP;
 	}
 
@@ -1997,14 +2026,21 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	//struct mac_translation_entry *entry_update;
 	const struct mac_pair *pair;
 	bool result = true;
-	__le16 fc;
+	__le16 fc, fc1;
+	__le16 seq_ctrl; // Sequence control field
+    u16 seq_num; // Sequence number
+	//use this enum to simply identify the instance type
+	enum rathan_instance_type instance_type;
 	//current time period 
 	//u8 rkeylen = 16;
 	long long int current_tp, current_tp1;
-	//u8 my_mac_address[ETH_ALEN] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xab};
+	
 	unsigned char r_mac_address[ETH_ALEN];
 	//const unsigned char *base_mac;
 	const unsigned char *random_mac;  //random variable to store the re randomized mac address
+	bool gen_flag;
+	const u8 *interface_mac_addr;
+	const u8 *dest_mac_addr;
 
 	//interval time period
 	current_tp = (ktime_get_real_seconds()/5);
@@ -2017,7 +2053,20 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	u8 raddr3[ETH_ALEN];
 	u8 raddr4[ETH_ALEN]; */
 
+	//used these to debug intial time period
+	/* if (sta != NULL){
+
+		if(sta->sdata->vif.type == NL80211_IFTYPE_AP){
+			printk(KERN_DEBUG "Rathan: sta type AP\n");
+			printk(KERN_DEBUG "Ap start time period: %lld\n", sta->sdata->start_time_period);
+		}else if(sta->sdata->vif.type == NL80211_IFTYPE_STATION){
+			printk(KERN_DEBUG "Rathan: sta type STA\n");
+			printk(KERN_DEBUG "Station start time period: %lld\n", sta->start_time_period);
+		}	
+		
+	} */
 	
+
 	
 	
 
@@ -2029,16 +2078,7 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
-	// use the similar code to copy mac address from one to another
-	/* printk(KERN_DEBUG "Rathan: frame control %x\n", fc);
-	memcpy(raddr1, ((struct ieee80211_hdr *)skb->data)->addr1, sizeof(raddr1));
-	printk(KERN_DEBUG "Rathan: destination addr %pM\n", raddr1);
-	memcpy(raddr2, ((struct ieee80211_hdr *)skb->data)->addr2, sizeof(raddr2));
-	printk(KERN_DEBUG "Rathan: source addr %pM\n", raddr2);
-	memcpy(raddr3, ((struct ieee80211_hdr *)skb->data)->addr3, sizeof(raddr3));
-	printk(KERN_DEBUG "Rathan: bssid addr %pM\n", raddr3);
-	memcpy(raddr4, ((struct ieee80211_hdr *)skb->data)->addr4, sizeof(raddr4));
-	printk(KERN_DEBUG "Rathan: addr4 addr %pM\n", raddr4); */
+	
 
 
 	info = IEEE80211_SKB_CB(skb);
@@ -2078,203 +2118,54 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	}
 
 
+	interface_mac_addr = sdata->vif.addr;
 
+
+
+	//these codes are used to debug the PTK keys of AP (w.r.t station) and STA
 	/* if (sta != NULL){
+		dest_mac_addr = sta->sta.addr;
 		if (sta->sdata->vif.type == NL80211_IFTYPE_AP){
 			packet_sent_from_ap = true;
 			
-			printk(KERN_DEBUG "packet sent from Ap\n");
+			//printk(KERN_DEBUG "inter %pM dest %pM\n", interface_mac_addr, dest_mac_addr);
+			rcu_read_lock();
+			list_for_each_entry(sta, &local->sta_list, list) {
+            if (memcmp(sta->sta.addr, dest_mac_addr, ETH_ALEN) == 0) {
+                // Station found, retrieve the PTK
+				key = rcu_dereference(sta->ptk[sta->ptk_idx]);
+                if (key) {
+                    printk(KERN_DEBUG "inter %pM dest %pM\n", interface_mac_addr, dest_mac_addr);
+					printk(KERN_DEBUG "PTK for station %*ph\n", key->conf.keylen, key->conf.key);
+                } else {
+                    printk(KERN_DEBUG "No PTK for station ");
+                }
+                break;
+            }
+			rcu_read_unlock();
+			//printk(KERN_DEBUG "Rathan: 2 ptk key %*ph", key->conf.keylen, key->conf.key);
+			//test_func(local, skb, sta, 1, current_tp);
+			}
+			//printk(KERN_DEBUG "Rathan: 3 ptk key %*ph", key->conf.keylen, key->conf.key);
 		}else if (sta->sdata->vif.type == NL80211_IFTYPE_STATION){
 			packet_sent_from_sta = true;
 			
-			printk(KERN_DEBUG "packet sent from station\n");
+			printk(KERN_DEBUG "inter %pM dest %pM\n", interface_mac_addr, dest_mac_addr);
+			if (sta && (key = rcu_dereference(sta->ptk[sta->ptk_idx]))) {
+			
+				printk(KERN_DEBUG "Rathan: ptk key %*ph", key->conf.keylen, key->conf.key);
+				
+			}else{
+				printk(KERN_DEBUG "Rathan: No PTK for station ");
+			}
+
 		}
 	} */
 	
 
 
-/* 
-	if(sta != NULL){
-		if ((sta->sdata->vif.type == NL80211_IFTYPE_AP) && (!ieee80211_is_mgmt(fc))){
-			//printk(KERN_DEBUG "Rathan: sta type AP\n");
-			if(current_tp == interval_tp){
-				//change RX, DA mac address to current randomized mac address 
-				entry = search_by_base_mac(hdr->addr1);
-				if(entry != NULL){
-					printk(KERN_DEBUG "Ap case1 tx.c");
-					//printk(KERN_DEBUG "Rathan: AP case 1  pkt and Ap in same interval with has entry in the table");
-					//use randomized mac address from the table wrt to the base mac, change hdr->addr1 using memcpy
-					//uncomment below lines for actual useage
-					printk(KERN_DEBUG "tx: ap  addr1 %pM\n", hdr->addr1);
-					printk(KERN_DEBUG "tx: ap addr2 %pM\n", hdr->addr2);
-					printk(KERN_DEBUG "tx: ap addr3 %pM\n", hdr->addr3);
-					printk(KERN_DEBUG "fc %d\n", fc);
-					random_mac = entry->random_mac;
-					memcpy(hdr->addr1, random_mac, ETH_ALEN);
-					//printk(KERN_DEBUG "AP case1 tx.c");
-					print_mac_translation_table();
-				}else{
-					//printk(KERN_DEBUG "Rathan: AP case 2 pkt and Ap in same interval with no entry in the table");
-					//create new entry in the table with base mac address 
-					//and randomized mac address entry with same  base mac address
-					//use randomized mac address from the table wrt to the base mac address, change hdr->addr1 using memcpy
-					//uncomment below lines for actual useage
-					printk(KERN_DEBUG "Ap case2 tx.c");
-					printk(KERN_DEBUG "tx: ap  addr1 %pM\n", hdr->addr1);
-					printk(KERN_DEBUG "tx: ap addr2 %pM\n", hdr->addr2);
-					printk(KERN_DEBUG "tx: ap addr3 %pM\n", hdr->addr3);
-					printk(KERN_DEBUG "fc %d\n", fc);
-					insert_entry(hdr->addr1, hdr->addr1);
-					//printk(KERN_DEBUG "AP case2 tx.c");
-					//print_mac_translation_table();
-					
-					//memcpy(hdr->addr1, entry_update->random_mac, ETH_ALEN);
-				}
-			}else{
-				//change RX, DA mac address to updated randomized mac address
-				entry = search_by_base_mac(hdr->addr1);
-				if(entry != NULL){
-					//printk(KERN_DEBUG "Rathan: AP case 3 pkt and Ap in different interval with has entry in the table");
-					//generate new randomized mac address by using the base mac address below lines does this thing
-					//we got the randomized mac address in r_mac_address update that in the transulation table wrt to the base mac address
-					//use randomized mac address from the table wrt to the base mac, change hdr->addr1 using memcpy
-					printk(KERN_DEBUG "Ap case3 tx.c");
-					//uncomment below lines for actual useage
-					generate_mac_address(skb, sta, 1, current_tp, r_mac_address);
-					printk(KERN_DEBUG "tx: ap  addr1 %pM\n", hdr->addr1);
-					printk(KERN_DEBUG "tx: ap addr2 %pM\n", hdr->addr2);
-					printk(KERN_DEBUG "tx: ap addr3 %pM\n", hdr->addr3);
-					printk(KERN_DEBUG "fc %d\n", fc);
-					update_entry_by_base(hdr->addr1, r_mac_address);
-					//we can search in the table and use memcpy or we can directly use the r_mac_address
-					memcpy(hdr->addr1, r_mac_address, ETH_ALEN); //or memcpy(hdr->addr1, entry_update->random_mac, ETH_ALEN);
-					//printk(KERN_DEBUG "AP case3 tx.c");
-					//print_mac_translation_table();
-					//after update in the table 
-					//entry_update = search_by_base_mac(hdr->addr1);
-					//memcpy(hdr->addr1, entry_update->random_mac, ETH_ALEN);
-
-				}else{
-					//printk(KERN_DEBUG "Rathan: AP case 4 pkt and Ap in different interval with no entry in the table");
-					//create new entry in the table with base mac address 
-					//generate new randomized mac address by using the base mac address below lines does this thing
-					//we got the randomized mac address in r_mac_address update that in the transulation table wrt to the base mac address
-					//use randomized mac address from the table wrt to the base mac, change hdr->addr1 using memcpy
-					printk(KERN_DEBUG "Ap case4 tx.c");
-					//trying some new logic here because since their is no entry in the table the station is new so we can directly use the r_mac_address
-					printk(KERN_DEBUG "tx: ap  addr1 %pM\n", hdr->addr1);
-					printk(KERN_DEBUG "tx: ap addr2 %pM\n", hdr->addr2);
-					printk(KERN_DEBUG "tx: ap addr3 %pM\n", hdr->addr3);
-					printk(KERN_DEBUG "fc %d\n", fc);
-					insert_entry(hdr->addr1, hdr->addr1);
-					//printk(KERN_DEBUG "AP case4 tx.c");
-					//print_mac_translation_table();
-					
-				}
-				//update the interval_tp to current_tp
-				interval_tp = current_tp;
-			}
-		}else if ((sta->sdata->vif.type == NL80211_IFTYPE_STATION) && (!ieee80211_is_mgmt(fc))){
-			//printk(KERN_DEBUG "Rathan: sta type STATION\n");
-			if(current_tp == interval_tp){
-				//change TX, SA mac address to current randomized mac address 
-				//pair = search_by_s_base_mac(hdr->addr2);
-				pair = get_mac_pair();
-				if(pair != NULL){
-					//printk(KERN_DEBUG "Rathan: STATION case 1 pkt and station in same interval with has entry in the pair");
-					//use randomized mac address from the mac address pair wrt to the base mac, change hdr->addr2 using memcpy
-					printk(KERN_DEBUG "STATION case1 tx.c");
-					//uncomment below lines for actual useage
-					printk(KERN_DEBUG "tx: sta  addr1 %pM\n", hdr->addr1);
-					printk(KERN_DEBUG "tx: sta addr2 %pM\n", hdr->addr2);
-					printk(KERN_DEBUG "tx: sta addr3 %pM\n", hdr->addr3);
-					printk(KERN_DEBUG "fc %d\n", fc);
-					random_mac = pair->current_random_mac;
-					memcpy(hdr->addr2, random_mac, ETH_ALEN);
-					
-					//print_mac_pair(pair);
-				}else{
-					//printk(KERN_DEBUG "Rathan: STATION case 2 pkt and station in same interval with no entry in the pair");
-					//create new entry in the mac address pair with base mac address
-					//and randomized mac address entry with same  base mac address
-					//use randomized mac address from the mac address pair wrt to the base mac address, change hdr->addr2 using memcpy
-					//uncomment below lines for actual useage
-					printk(KERN_DEBUG "STATION case2 tx.c");
-					printk(KERN_DEBUG "tx: sta  addr1 %pM\n", hdr->addr1);
-					printk(KERN_DEBUG "tx: sta addr2 %pM\n", hdr->addr2);
-					printk(KERN_DEBUG "tx: sta addr3 %pM\n", hdr->addr3);
-					printk(KERN_DEBUG "fc %d\n", fc);
-					set_mac_pair(hdr->addr2, hdr->addr2);
-					//pair = search_by_s_base_mac(hdr->addr2);
-					//random_mac = pair->current_random_mac;
-					
-					//print_mac_pair(pair);
-					//memcpy(hdr->addr2, random_mac, ETH_ALEN);
-						
-				}
-
-			}else{
-			//change TX, SA mac address to updated randomized mac address
-			//pair = search_by_s_base_mac(hdr->addr2);
-			pair = get_mac_pair();
-			if(pair != NULL){
-				//printk(KERN_DEBUG "Rathan: STATION case 3 pkt and station in different interval with has entry in the pair");
-				//generate new randomized mac address by using the base mac address below lines does this thing
-				//we got the randomized mac address in r_mac_address update that in the mac address pair wrt to the base mac address
-				//use randomized mac address from the mac address pair wrt to the base mac, change hdr->addr2 using memcpy
-				//uncomment below lines for actual useage
-				printk(KERN_DEBUG "STATION case3 tx.c");
-				generate_mac_address(skb, sta, 2, current_tp, r_mac_address);
-				printk(KERN_DEBUG "tx: sta  addr1 %pM\n", hdr->addr1);
-				printk(KERN_DEBUG "tx: sta addr2 %pM\n", hdr->addr2);
-				printk(KERN_DEBUG "tx: sta addr3 %pM\n", hdr->addr3);
-				printk(KERN_DEBUG "fc %d\n", fc);
-				update_current_random_mac(hdr->addr2, r_mac_address);
-				//we can search in the table and use memcpy or we can directly use the r_mac_address
-				memcpy(hdr->addr2, r_mac_address, ETH_ALEN); //or memcpy(hdr->addr2, pair->current_random_mac, ETH_ALEN);
-				//pair = search_by_s_base_mac(hdr->addr2);
-				
-				//print_mac_pair(pair);
-				//after update in the table 
-				
-				//memcpy(hdr->addr2, pair->current_random_mac, ETH_ALEN);
-			}else{
-				//printk(KERN_DEBUG "Rathan: STATION case 4 pkt and station in different interval with no entry in the pair");
-				//create new entry in the mac address pair with base mac address
-				//generate new randomized mac address by using the base mac address below lines does this thing
-				//we got the randomized mac address in r_mac_address update that in the mac address pair wrt to the base mac address
-				//use randomized mac address from the mac address pair wrt to the base mac, change hdr->addr2 using memcpy
-				printk(KERN_DEBUG "STATION case4 tx.c");
-				//trying some new logic here because since their is no entry in the table the station is new so we can directly use the r_mac_address
-				printk(KERN_DEBUG "tx: sta  addr1 %pM\n", hdr->addr1);
-				printk(KERN_DEBUG "tx: sta addr2 %pM\n", hdr->addr2);
-				printk(KERN_DEBUG "tx: sta addr3 %pM\n", hdr->addr3);
-				printk(KERN_DEBUG "fc %d\n", fc);
-				set_mac_pair(hdr->addr2, hdr->addr2);
-				random_mac = pair->current_random_mac;
-				//pair = search_by_s_base_mac(hdr->addr2);
-				
-				//print_mac_pair(pair);
-				
-			}
-			//update the interval_tp to current_tp
-			interval_tp = current_tp;
-			}
-		}else{
-			//printk(KERN_DEBUG "Rathan: interface unknown \n");
-		    }				
-
-	}else{
-		//printk(KERN_DEBUG "Rathan: sta is NULL\n");
-	} */
-
-
 	
-	/* printk(KERN_DEBUG " packet sent");
-	printk(KERN_DEBUG " addr1 %pM\n", hdr->addr1);
-	printk(KERN_DEBUG " addr2 %pM\n", hdr->addr2);
-	printk(KERN_DEBUG " addr3 %pM\n", hdr->addr3);
-	printk(KERN_DEBUG " addr4 %pM\n", hdr->addr4); */
+	
 	
 	//this way we can eliminate ipv4 and ipv6 multicast packets at transmsission
 	/* if (sta != NULL){
@@ -2289,181 +2180,138 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 		}
 	} */
 
-
-	//debugging the MAT Table and Mac pair 
-	
-	if(sta != NULL){
-		if ((sta->sdata->vif.type == NL80211_IFTYPE_AP) && (!ieee80211_is_mgmt(fc))){
-			//printk(KERN_DEBUG "Rathan: sta type AP\n");
-			if(current_tp == interval_tp){
-				//change RX, DA mac address to current randomized mac address 
-				entry = search_by_base_mac(hdr->addr1);
-				if(entry != NULL){
-					//printk(KERN_DEBUG "Ap case1 tx.c");
-					//printk(KERN_DEBUG "Rathan: AP case 1  pkt and Ap in same interval with has entry in the table");
-					//use randomized mac address from the table wrt to the base mac, change hdr->addr1 using memcpy
-					//uncomment below lines for actual useage
-					/* printk(KERN_DEBUG "tx: ap  addr1 %pM\n", hdr->addr1);
-					printk(KERN_DEBUG "tx: ap addr2 %pM\n", hdr->addr2);
-					printk(KERN_DEBUG "tx: ap addr3 %pM\n", hdr->addr3);
-					printk(KERN_DEBUG "fc %d\n", fc); */
-					random_mac = entry->random_mac;
-					//print_mac_translation_table();
-				}else{
-					//printk(KERN_DEBUG "Rathan: AP case 2 pkt and Ap in same interval with no entry in the table");
-					//create new entry in the table with base mac address 
-					//and randomized mac address entry with same  base mac address
-					//use randomized mac address from the table wrt to the base mac address, change hdr->addr1 using memcpy
-					//uncomment below lines for actual useage
-					/* printk(KERN_DEBUG "Ap case2 tx.c");
-					printk(KERN_DEBUG "tx: ap  addr1 %pM\n", hdr->addr1);
-					printk(KERN_DEBUG "tx: ap addr2 %pM\n", hdr->addr2);
-					printk(KERN_DEBUG "tx: ap addr3 %pM\n", hdr->addr3);
-					printk(KERN_DEBUG "fc %d\n", fc); */
-					insert_entry(hdr->addr1, hdr->addr1);
-					//printk(KERN_DEBUG "AP case2 tx.c");
-					//print_mac_translation_table();
-					
-					//memcpy(hdr->addr1, entry_update->random_mac, ETH_ALEN);
-				}
-			}else{
-				//change RX, DA mac address to updated randomized mac address
-				entry = search_by_base_mac(hdr->addr1);
-				if(entry != NULL){
-					//printk(KERN_DEBUG "Rathan: AP case 3 pkt and Ap in different interval with has entry in the table");
-					//generate new randomized mac address by using the base mac address below lines does this thing
-					//we got the randomized mac address in r_mac_address update that in the transulation table wrt to the base mac address
-					//use randomized mac address from the table wrt to the base mac, change hdr->addr1 using memcpy
-					//printk(KERN_DEBUG "Ap case3 tx.c");
-					//uncomment below lines for actual useage
-					generate_mac_address(skb, sta, 1, current_tp, r_mac_address);
-					/* printk(KERN_DEBUG "tx: ap  addr1 %pM\n", hdr->addr1);
-					printk(KERN_DEBUG "tx: ap addr2 %pM\n", hdr->addr2);
-					printk(KERN_DEBUG "tx: ap addr3 %pM\n", hdr->addr3);
-					printk(KERN_DEBUG "fc %d\n", fc); */
-					update_entry_by_base(hdr->addr1, r_mac_address);
-					//we can search in the table and use memcpy or we can directly use the r_mac_address
-					//memcpy(hdr->addr1, r_mac_address, ETH_ALEN); //or memcpy(hdr->addr1, entry_update->random_mac, ETH_ALEN);
-					//printk(KERN_DEBUG "AP case3 tx.c");
-					//print_mac_translation_table();
-					//after update in the table 
-					//entry_update = search_by_base_mac(hdr->addr1);
-					//memcpy(hdr->addr1, entry_update->random_mac, ETH_ALEN);
-
-				}else{
-					//printk(KERN_DEBUG "Rathan: AP case 4 pkt and Ap in different interval with no entry in the table");
-					//create new entry in the table with base mac address 
-					//generate new randomized mac address by using the base mac address below lines does this thing
-					//we got the randomized mac address in r_mac_address update that in the transulation table wrt to the base mac address
-					//use randomized mac address from the table wrt to the base mac, change hdr->addr1 using memcpy
-					/* printk(KERN_DEBUG "Ap case4 tx.c");
-					//trying some new logic here because since their is no entry in the table the station is new so we can directly use the r_mac_address
-					printk(KERN_DEBUG "tx: ap  addr1 %pM\n", hdr->addr1);
-					printk(KERN_DEBUG "tx: ap addr2 %pM\n", hdr->addr2);
-					printk(KERN_DEBUG "tx: ap addr3 %pM\n", hdr->addr3);
-					printk(KERN_DEBUG "fc %d\n", fc); */
-					insert_entry(hdr->addr1, hdr->addr1);
-					//printk(KERN_DEBUG "AP case4 tx.c");
-					//print_mac_translation_table();
-					
-				}
-				//update the interval_tp to current_tp
-				interval_tp = current_tp;
-			}
-		}else if ((sta->sdata->vif.type == NL80211_IFTYPE_STATION) && (!ieee80211_is_mgmt(fc))){
-			//printk(KERN_DEBUG "Rathan: sta type STATION\n");
-			if(current_tp1 == interval_tp){
-				//change TX, SA mac address to current randomized mac address 
-				//pair = search_by_s_base_mac(hdr->addr2);
-				pair = get_mac_pair();
-				if(pair != NULL){
-					//printk(KERN_DEBUG "Rathan: STATION case 1 pkt and station in same interval with has entry in the pair");
-					//use randomized mac address from the mac address pair wrt to the base mac, change hdr->addr2 using memcpy
-					printk(KERN_DEBUG "STATION case1 tx.c");
-					//uncomment below lines for actual useage
-					/* printk(KERN_DEBUG "tx: sta  addr1 %pM\n", hdr->addr1);
-					printk(KERN_DEBUG "tx: sta addr2 %pM\n", hdr->addr2);
-					printk(KERN_DEBUG "tx: sta addr3 %pM\n", hdr->addr3);
-					printk(KERN_DEBUG "fc %d\n", fc); */
-					random_mac = pair->current_random_mac;
-					//memcpy(hdr->addr2, random_mac, ETH_ALEN);
-					
-					//print_mac_pair(pair);
-				}else{
-					//printk(KERN_DEBUG "Rathan: STATION case 2 pkt and station in same interval with no entry in the pair");
-					//create new entry in the mac address pair with base mac address
-					//and randomized mac address entry with same  base mac address
-					//use randomized mac address from the mac address pair wrt to the base mac address, change hdr->addr2 using memcpy
-					//uncomment below lines for actual useage
-					printk(KERN_DEBUG "STATION case2 tx.c");
-					/* printk(KERN_DEBUG "tx: sta  addr1 %pM\n", hdr->addr1);
-					printk(KERN_DEBUG "tx: sta addr2 %pM\n", hdr->addr2);
-					printk(KERN_DEBUG "tx: sta addr3 %pM\n", hdr->addr3);
-					printk(KERN_DEBUG "fc %d\n", fc); */
-					set_mac_pair(hdr->addr2, hdr->addr2);
-					//pair = search_by_s_base_mac(hdr->addr2);
-					//random_mac = pair->current_random_mac;
-					
-					//print_mac_pair(pair);
-					//memcpy(hdr->addr2, random_mac, ETH_ALEN);
-						
-				}
-
-			}else{
-			//change TX, SA mac address to updated randomized mac address
-			//pair = search_by_s_base_mac(hdr->addr2);
-				pair = get_mac_pair();
-				if(pair != NULL){
-					//printk(KERN_DEBUG "Rathan: STATION case 3 pkt and station in different interval with has entry in the pair");
-					//generate new randomized mac address by using the base mac address below lines does this thing
-					//we got the randomized mac address in r_mac_address update that in the mac address pair wrt to the base mac address
-					//use randomized mac address from the mac address pair wrt to the base mac, change hdr->addr2 using memcpy
-					//uncomment below lines for actual useage
-					printk(KERN_DEBUG "STATION case3 tx.c");
-					generate_mac_address(skb, sta, 2, current_tp1, r_mac_address);
-					/* printk(KERN_DEBUG "tx: sta  addr1 %pM\n", hdr->addr1);
-					printk(KERN_DEBUG "tx: sta addr2 %pM\n", hdr->addr2);
-					printk(KERN_DEBUG "tx: sta addr3 %pM\n", hdr->addr3);
-					printk(KERN_DEBUG "fc %d\n", fc); */
-					update_current_random_mac(hdr->addr2, r_mac_address);
-					//we can search in the table and use memcpy or we can directly use the r_mac_address
-					//memcpy(hdr->addr2, r_mac_address, ETH_ALEN); //or memcpy(hdr->addr2, pair->current_random_mac, ETH_ALEN);
-					//pair = search_by_s_base_mac(hdr->addr2);
-					
-					//print_mac_pair(pair);
-					//after update in the table 
-					
-					//memcpy(hdr->addr2, pair->current_random_mac, ETH_ALEN);
-				}else{
-					//printk(KERN_DEBUG "Rathan: STATION case 4 pkt and station in different interval with no entry in the pair");
-					//create new entry in the mac address pair with base mac address
-					//generate new randomized mac address by using the base mac address below lines does this thing
-					//we got the randomized mac address in r_mac_address update that in the mac address pair wrt to the base mac address
-					//use randomized mac address from the mac address pair wrt to the base mac, change hdr->addr2 using memcpy
-					printk(KERN_DEBUG "STATION case4 tx.c");
-					//trying some new logic here because since their is no entry in the table the station is new so we can directly use the r_mac_address
-					/* printk(KERN_DEBUG "tx: sta  addr1 %pM\n", hdr->addr1);
-					printk(KERN_DEBUG "tx: sta addr2 %pM\n", hdr->addr2);
-					printk(KERN_DEBUG "tx: sta addr3 %pM\n", hdr->addr3);
-					printk(KERN_DEBUG "fc %d\n", fc); */
-					set_mac_pair(hdr->addr2, hdr->addr2);
-					random_mac = pair->current_random_mac;
-					//pair = search_by_s_base_mac(hdr->addr2);
-					
-					//print_mac_pair(pair);
-					
-				}
-				//update the interval_tp to current_tp
-				interval_tp = current_tp1;
-			}
-		}else{
-			//printk(KERN_DEBUG "Rathan: interface unknown \n");
-		}
-
-	}else{
-		//printk(KERN_DEBUG "Rathan: sta is NULL\n");
+	if (local){
+		instance_type = which_instance(local);
 	}
 
+	switch (instance_type) {
+        case rathan_INSTANCE_STA:
+            printk(KERN_INFO "The instance is a STA (Station)\n");
+            break;
+        case rathan_INSTANCE_AP:
+            printk(KERN_INFO "The instance is an AP (Access Point)\n");
+            break;
+        case rathan_INSTANCE_UNKNOWN:
+        default:
+            printk(KERN_INFO "The instance type is UNKNOWN\n");
+            break;
+    }
+
+	print_packet_header(skb);
+
+
+	/* if (sta){
+		if (ieee80211_is_data(fc)) {
+			print_packet_header(skb);
+		}
+	} */
+
+	
+	//need some modification in below code 
+	//because based on instance we need to generate mac address (need to verify also) 
+	//and change the mac address in the packet which has base mac address
+	// we need to think about this change but untill then we can use the below code
+	
+	//but we need to change the code to generate the mac address function based on the instance
+
+	seq_ctrl = hdr->seq_ctrl; // Sequence control field
+    seq_num = le16_to_cpu(seq_ctrl) >> 4; // Sequence number
+	fc1 = le16_to_cpu(hdr->frame_control);
+
+	/* if (sta != NULL) {
+		if (!ieee80211_is_mgmt(fc)) {
+			int type = sta->sdata->vif.type;
+			//bool same_interval = (current_tp == interval_tp);
+
+			switch (type) {
+				case NL80211_IFTYPE_AP:
+					printk(KERN_DEBUG "Tx: sta type AP\n");
+					entry = search_by_base_mac(hdr->addr1);
+
+					if (entry != NULL) {
+						printk(KERN_DEBUG "Ap case1 tx.c");
+						random_mac = entry->random_mac;
+						gen_flag = true;
+					} else {
+						printk(KERN_DEBUG "Ap case2 tx.c");
+						insert_entry(hdr->addr1, hdr->addr1);
+						entry = search_by_base_mac(hdr->addr1);
+						random_mac = entry->random_mac;
+						gen_flag = false;
+					}
+
+					if (((current_tp) != (sta->sdata->start_time_period)) && gen_flag) {
+						printk(KERN_DEBUG "Ap case3 tx.c");
+						generate_mac_add_ap(local, skb, sta, 1, current_tp, r_mac_address);
+						update_entry_by_base(hdr->addr1, r_mac_address);
+						random_mac = r_mac_address;
+						printk(KERN_DEBUG "Rathan: curr %lld inter %lld", current_tp, sta->sdata->start_time_period);
+						sta->sdata->start_time_period = current_tp;
+					}
+
+					//memcpy(hdr->addr1, random_mac, ETH_ALEN);
+					dest_mac_addr = sta->sta.addr;
+					printk(KERN_DEBUG "inter %pM dest %pM\n", interface_mac_addr, dest_mac_addr);
+					printk(KERN_DEBUG "tx: ap  addr1 %pM\n", hdr->addr1);
+					printk(KERN_DEBUG "tx: ap addr2 %pM\n", hdr->addr2);
+					printk(KERN_DEBUG "tx: ap addr3 %pM\n", hdr->addr3);
+					printk(KERN_DEBUG "tx: sta addr4 %pM\n", hdr->addr4);
+					printk(KERN_DEBUG "fc %d\n", fc);
+					printk(KERN_DEBUG "Rathan: Frame Control Field: 0x%04x\n", fc1);
+					printk(KERN_DEBUG "Rathan: Packet - Seq Num: %u\n", seq_num);
+					printk(KERN_DEBUG "Rathan: curr %lld inter %lld", current_tp, sta->sdata->start_time_period);
+					print_mac_translation_table();
+					break;
+
+				case NL80211_IFTYPE_STATION:
+					printk(KERN_DEBUG "Tx: sta type STATION\n");
+					pair = get_mac_pair();
+
+					if (pair != NULL) {
+						printk(KERN_DEBUG "STATION case1 tx.c");
+						random_mac = pair->current_random_mac;
+						gen_flag = true;
+					} else {
+						printk(KERN_DEBUG "STATION case2 tx.c");
+						set_mac_pair(hdr->addr2, hdr->addr2);
+						pair = get_mac_pair();
+						random_mac = pair->current_random_mac;
+						gen_flag = false;
+					}
+					//sta->sta_state == IEEE80211_STA_AUTHORIZED
+					if ((current_tp1 != (sta->start_time_period)) && gen_flag) {
+						printk(KERN_DEBUG "Station case3 tx.c");
+						generate_mac_add_sta(skb, sta, 2, current_tp, r_mac_address);
+						update_current_random_mac(hdr->addr2, r_mac_address);
+						random_mac = r_mac_address;
+						printk(KERN_DEBUG "Rathan: curr %lld inter %lld", current_tp, sta->start_time_period);
+						sta->start_time_period = current_tp;
+					}
+
+					//memcpy(hdr->addr2, random_mac, ETH_ALEN);
+					dest_mac_addr = sta->sta.addr;
+					printk(KERN_DEBUG "inter %pM dest %pM\n", interface_mac_addr, dest_mac_addr);
+					printk(KERN_DEBUG "tx pp: sta  addr1 %pM\n", hdr->addr1);
+					printk(KERN_DEBUG "tx: sta addr2 %pM\n", hdr->addr2);
+					printk(KERN_DEBUG "tx: sta addr3 %pM\n", hdr->addr3);
+					printk(KERN_DEBUG "tx: sta addr4 %pM\n", hdr->addr4);
+					printk(KERN_DEBUG "fc %d\n", fc);
+					printk(KERN_DEBUG "Rathan: Frame Control Field: 0x%04x\n", fc1);
+					printk(KERN_DEBUG "Rathan: Packet - Seq Num: %u\n", seq_num);
+					printk(KERN_DEBUG "Rathan: curr %lld inter %lld", current_tp, sta->start_time_period);
+					print_mac_pair();
+					break;
+
+				default:
+					printk(KERN_DEBUG "Rathan: interface unknown \n");
+					break;
+			}
+		}
+	} else {
+		//printk(KERN_DEBUG "Rathan: sta is NULL\n");
+	} */
+
+	
 	
 
 	result = ieee80211_tx_frags(local, vif, pubsta, skbs,
@@ -2476,95 +2324,7 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	return result;
 }
 
-void generate_mac_address(struct sk_buff *skb, struct sta_info *sta, int flag_addr, long long int current_tp, unsigned char *r_mac) {
-	struct crypto_shash *shash;
-	struct shash_desc *shash_desc;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct ieee80211_key *key;
-	//r_mac is re-randomized mac address
-	//char data[MAC_ADDRESS_LENGTH + 16 + sizeof(current_tp)];  // Buffer for the data to be hashed
-	unsigned char hash[20];  // Buffer for the hash
-	//int i;
-	char *data;
-	int total_size = MAC_ADDRESS_LENGTH + 16 + sizeof(current_tp);
-	// Assuming total_size is the sum of the lengths of the MAC address, the PTK key, and current_tp
-	
-	// As far now this function works well, we need to make changes that which base mac address is used to generate the random mac address 
-	// use flag_addr to determine the base mac address which is SA or the DA 
 
-	data = kmalloc(total_size, GFP_KERNEL);
-	if (!data) {
-		printk(KERN_ERR "Failed to allocate data\n");
-		return;
-	}
-
-	// Initialize the crypto hash
-	shash = crypto_alloc_shash("sha1", 0, 0);
-	if (IS_ERR(shash)) {
-		printk(KERN_ERR "Failed to allocate crypto hash\n");
-		return;
-	}
-
-	shash_desc = kmalloc(sizeof(struct shash_desc) + crypto_shash_descsize(shash), GFP_KERNEL);
-	if (!shash_desc) {
-		printk(KERN_ERR "Failed to allocate shash_desc\n");
-		crypto_free_shash(shash);
-		return;
-	}
-
-	shash_desc->tfm = shash;
-
-	//printk(KERN_DEBUG "Rathan: hello");
-	// Concatenate the inputs
-	if (sta && (key = rcu_dereference(sta->ptk[sta->ptk_idx]))) {
-		//use these for debugging purpose
-		/* printk(KERN_DEBUG "Rathan: mac address %pM", sta->addr);
-		printk(KERN_DEBUG "Rathan: %d", ETH_ALEN);
-		printk(KERN_DEBUG "Rathan: ptk key %*ph", sta->ptk[sta->ptk_idx]->conf.keylen, sta->ptk[sta->ptk_idx]->conf.key);
-		printk(KERN_DEBUG "Rathan: %u", sta->ptk[sta->ptk_idx]->conf.keylen);
-		printk(KERN_DEBUG "Rathan: current time period %lld", current_tp);
-		printk(KERN_DEBUG "Rathan: %zu", sizeof(current_tp)); */
-		
-		// Copy the MAC address to data
-		if (flag_addr == 1) {
-			memcpy(data, hdr->addr1, ETH_ALEN); // Use SA as the base MAC address
-		} else {
-			memcpy(data, hdr->addr2, ETH_ALEN); // Use DA as the base MAC address
-		}
-
-		// Copy the PTK key to data, after the MAC address
-		memcpy(data + ETH_ALEN, sta->ptk[sta->ptk_idx]->conf.key, sta->ptk[sta->ptk_idx]->conf.keylen);
-
-		// copy current_tp adjacet to the ptk key:
-		memcpy(data + ETH_ALEN + sta->ptk[sta->ptk_idx]->conf.keylen, &current_tp, sizeof(current_tp));
-
-		/* printk(KERN_DEBUG "Data: ");
-		for (i = 0; i < total_size; i++) {
-			printk(KERN_CONT "%02x", (unsigned char)data[i]);
-		}
-		printk(KERN_CONT "\n"); */
-	}
-	
-	
-	// Compute the hash
-	crypto_shash_digest(shash_desc, data, total_size, hash);
-
-	// Adjust the first byte of the hash to make it a valid MAC address
-	hash[0] = (hash[0] & 0xFC) | 0x02;  // Set bit-0 to 0 and bit-1 to 1
-
-	//no need to print the generated mac address this is for debugging purpose
-	/* printk(KERN_DEBUG "Generated MAC address: ");
-	// Use the first 6 bytes of the hash as the MAC address
-	for (i = 0; i < MAC_ADDRESS_LENGTH; i++) {
-		printk(KERN_DEBUG "%02x:", hash[i]);
-	} */
-	//copy the generated mac address to the r_mac
-	memcpy(r_mac, hash, MAC_ADDRESS_LENGTH);
-	// Clean up
-	kfree(shash_desc);
-	crypto_free_shash(shash);
-	kfree(data);
-}
 
 void test_fun(struct sta_info *sta, int flag_addr, long long current_tp)
 {

@@ -926,6 +926,9 @@ struct ieee80211_sub_if_data {
 	struct list_head assigned_chanctx_list; /* protected by chanctx_mtx */
 	struct list_head reserved_chanctx_list; /* protected by chanctx_mtx */
 
+	//rathan added for store start time for AP mode
+	//can be modified for further usage 
+	long long start_time_period;
 	/* context reservation -- protected with chanctx_mtx */
 	struct ieee80211_chanctx *reserved_chanctx;
 	struct cfg80211_chan_def reserved_chandef;

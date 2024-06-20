@@ -33,7 +33,7 @@
 #include "rate.h"
 #include "mac_translation_table.h"
 #include "mac_pair_station.h"
-#include "rathan_flags.h"
+#include "rathan_debug.h"
 
 extern long long int interval_tp;
 
@@ -777,6 +777,19 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 {
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(origskb);
 	struct ieee80211_sub_if_data *sdata;
+	//rathan added below line to get the interface name
+	struct ieee80211_hw *hw = &local->hw;
+	struct wiphy *wiphy = hw->wiphy;
+	struct wireless_dev *wdev;
+	struct ieee80211_hdr *hdr;
+	const struct mac_pair *station_pair;
+	struct mac_translation_entry *entry;
+	const char *ifname;
+	enum nl80211_iftype iftype;
+
+	
+	
+
 	struct sk_buff *monskb = NULL;
 	int present_fcs_len = 0;
 	unsigned int rtap_space = 0;
@@ -785,7 +798,123 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	bool only_monitor = false;
 	unsigned int min_head_len;
 
+	//rathan added these bools 
+	bool ap = false , sta = false;
+
 	//LOG_FUNC;
+
+    // Log the device name
+    //printk(KERN_INFO "Device name: %s\n", wiphy_name(wiphy));
+
+
+	hdr = (struct ieee80211_hdr *)origskb->data;
+
+
+	//below code is to get the interface type
+    list_for_each_entry(wdev, &wiphy->wdev_list, list) {
+        struct net_device *netdev = wdev->netdev;
+        if (!netdev) continue;
+
+        ifname = netdev->name;
+        
+        // Determine the interface type
+        iftype = wdev->iftype;
+
+        // Print or log the interface name and type
+        //printk(KERN_INFO "Function is running on interface: %s\n", ifname);
+
+        // Check and log the type of the interface
+        switch (iftype) {
+            case NL80211_IFTYPE_STATION:
+                //printk(KERN_INFO "Interface type: STATION\n");
+				sta = true;
+                break;
+            case NL80211_IFTYPE_AP:
+                //printk(KERN_INFO "Interface type: AP\n");
+				ap = true;
+                break;
+            // Add other cases if needed
+            default:
+                //printk(KERN_INFO "Interface type: OTHER\n");
+                break;
+        }
+    }
+
+
+
+
+	/* if (ap){
+		//printk(KERN_INFO "Ap instance");
+		entry = search_by_random_mac(hdr->addr1);
+        if (entry) {
+            memcpy(hdr->addr1, entry->base_mac, ETH_ALEN);
+			printk(KERN_DEBUG "ap 1 Mac address changed");
+        }
+
+        entry = search_by_random_mac(hdr->addr2);
+        if (entry) {
+            memcpy(hdr->addr2, entry->base_mac, ETH_ALEN);
+			printk(KERN_DEBUG "ap 2 Mac address changed");
+        }
+
+        entry = search_by_random_mac(hdr->addr3);
+        if (entry) {
+            memcpy(hdr->addr3, entry->base_mac, ETH_ALEN);
+			printk(KERN_DEBUG "ap 3 Mac address changed");
+        }
+
+        
+        entry = search_by_random_mac(hdr->addr4);
+        if (entry) {
+            memcpy(hdr->addr4, entry->base_mac, ETH_ALEN);
+			printk(KERN_DEBUG "ap 4 Mac address changed");
+		}
+        
+	}
+
+	if (sta){
+		//printk(KERN_INFO "Sta instance");
+		station_pair = get_mac_pair();
+		
+
+        if (station_pair) {
+            if (memcmp(hdr->addr1, station_pair->current_random_mac, ETH_ALEN) == 0) {
+                memcpy(hdr->addr1, station_pair->s_base_mac, ETH_ALEN);
+				printk(KERN_DEBUG "sta 1 Mac address changed");
+            }
+            if (memcmp(hdr->addr2, station_pair->current_random_mac, ETH_ALEN) == 0) {
+                memcpy(hdr->addr2, station_pair->s_base_mac, ETH_ALEN);
+				printk(KERN_DEBUG "sta 2 Mac address changed");
+            }
+            if (memcmp(hdr->addr3, station_pair->current_random_mac, ETH_ALEN) == 0) {
+                memcpy(hdr->addr3, station_pair->s_base_mac, ETH_ALEN);
+				printk(KERN_DEBUG "sta 3 Mac address changed");
+            }
+            if (memcmp(hdr->addr4, station_pair->current_random_mac, ETH_ALEN) == 0) {
+                memcpy(hdr->addr4, station_pair->s_base_mac, ETH_ALEN);
+				printk(KERN_DEBUG "sta 4 Mac address changed");
+            }
+        }else {
+			//printk(KERN_DEBUG " 2 Entry is null\n");
+		}
+	} */
+
+
+	//fcs debugging here 
+	/* if (status->flag & RX_FLAG_FAILED_FCS_CRC) {
+        printk(KERN_INFO "FCS error detected\n");
+    } else {
+        printk(KERN_INFO "FCS is present and valid\n");
+    } */
+
+
+
+
+
+
+
+
+
 	if (status->flag & RX_FLAG_RADIOTAP_HE)
 		rtap_space += sizeof(struct ieee80211_radiotap_he);
 
@@ -4566,9 +4695,9 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	struct ieee80211_sub_if_data *prev;
 	struct rhlist_head *tmp;
 	//Rathan work here
-	struct net_device *dev = skb->dev;
+	//struct net_device *dev = skb->dev;
 	
-	//const struct mac_pair *pair;
+	//const struct mac_pair *station_pair;
 	//struct mac_translation_entry *entry;
 	u16 type, subtype;
 
@@ -4699,27 +4828,55 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	} */
 
 
-	//MAT table debugging here
+	//MAT table debugging here delete these afterwards
 
 
-	if ((dev != NULL) && (!ieee80211_is_mgmt(fc))) {
+	/* if ((dev != NULL) && (!ieee80211_is_mgmt(fc))) {
 		//printk(KERN_DEBUG "dev is not null\n");
 		if (dev->ieee80211_ptr != NULL){
 			//printk(KERN_DEBUG "dev->ieee80211_ptr is not null\n");
-			/* printk(KERN_DEBUG " packet received");
+			printk(KERN_DEBUG " packet received");
 			printk(KERN_DEBUG " addr1 %pM\n", hdr->addr1);
 			printk(KERN_DEBUG " addr2 %pM\n", hdr->addr2);
 			printk(KERN_DEBUG " addr3 %pM\n", hdr->addr3);
 			printk(KERN_DEBUG " addr4 %pM\n", hdr->addr4); 
-			printk(KERN_DEBUG "Type: %u, Subtype: %u\n", type, subtype); */
+			printk(KERN_DEBUG "Type: %u, Subtype: %u\n", type, subtype);
 			if (dev->ieee80211_ptr->iftype == NL80211_IFTYPE_AP) {
 				printk(KERN_DEBUG "Actuall Station instance\n");
 				//this is because the packet is sent from the AP we extracted the flag from the packet itself
 				print_mac_pair();
 
+				pair = get_mac_pair();
+				if (pair != NULL) {
+					printk(KERN_DEBUG "Pair is not null\n");
+					
+					if (memcmp(pair->current_random_mac , hdr->addr2, ETH_ALEN) == 0) {
+						printk(KERN_DEBUG "Pair has random mac\n");
+						memcpy(hdr->addr2, pair->s_base_mac, ETH_ALEN);
+					} else {
+						printk(KERN_DEBUG "pair doesn't have entry \n");
+					}
+				} else {
+					printk(KERN_DEBUG "Pair is null\n");
+				}
+
 			} else if (dev->ieee80211_ptr->iftype == NL80211_IFTYPE_STATION) {
 				printk(KERN_DEBUG "Actual Ap instance\n");
 				//print_mac_translation_table();
+				entry = search_by_random_mac(hdr->addr1);
+				if (entry != NULL) {
+					printk(KERN_DEBUG "Entry is not null\n");
+					
+
+					if (memcmp(entry->random_mac, hdr->addr1, ETH_ALEN) == 0) {
+						printk(KERN_DEBUG "Base mac is same\n");
+						memcpy(hdr->addr1, entry->base_mac, ETH_ALEN);
+					} else {
+						printk(KERN_DEBUG "Base mac is different\n");
+					}
+				} else {
+					printk(KERN_DEBUG "Entry is null\n");
+				}
 			} else {
 				printk(KERN_DEBUG "Running on other instance\n");
 			}
@@ -4728,7 +4885,124 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		}
 	}else {
 		//printk(KERN_DEBUG "dev is null\n");
-	}
+	} */
+
+	//just check all address and change if needed to base mac 
+
+	//below lines to retrive base mac from the random mac
+	//&& (!ieee80211_is_mgmt(fc))
+	/* if ((dev != NULL) && (!ieee80211_is_mgmt(fc))) {
+		//printk(KERN_DEBUG "dev is not null\n");
+		if (dev->ieee80211_ptr != NULL){
+			//printk(KERN_DEBUG "dev->ieee80211_ptr is not null\n");
+			
+			if (dev->ieee80211_ptr->iftype == NL80211_IFTYPE_STATION) {
+				printk(KERN_DEBUG "AP: Handling RX packet\n");
+
+				entry = search_by_random_mac(hdr->addr1);
+				if (entry) {
+					memcpy(hdr->addr1, entry->base_mac, ETH_ALEN);
+				}else {
+					printk(KERN_DEBUG " 1 Entry is null\n");
+				}
+
+				entry = search_by_random_mac(hdr->addr2);
+				if (entry) {
+					memcpy(hdr->addr2, entry->base_mac, ETH_ALEN);
+				}
+
+				entry = search_by_random_mac(hdr->addr3);
+				if (entry) {
+					memcpy(hdr->addr3, entry->base_mac, ETH_ALEN);
+				}
+
+				if (ieee80211_has_a4(fc)) {
+					entry = search_by_random_mac(hdr->addr4);
+					if (entry) {
+						memcpy(hdr->addr4, entry->base_mac, ETH_ALEN);
+					}
+				}
+
+			}else if (dev->ieee80211_ptr->iftype == NL80211_IFTYPE_AP){
+
+				printk(KERN_DEBUG "Station: Handling RX packet\n");
+
+				station_pair = get_mac_pair();
+				if (station_pair) {
+					if (memcmp(hdr->addr1, station_pair->current_random_mac, ETH_ALEN) == 0) {
+						memcpy(hdr->addr1, station_pair->s_base_mac, ETH_ALEN);
+					}
+					if (memcmp(hdr->addr2, station_pair->current_random_mac, ETH_ALEN) == 0) {
+						memcpy(hdr->addr2, station_pair->s_base_mac, ETH_ALEN);
+					}
+					if (memcmp(hdr->addr3, station_pair->current_random_mac, ETH_ALEN) == 0) {
+						memcpy(hdr->addr3, station_pair->s_base_mac, ETH_ALEN);
+					}
+					if (ieee80211_has_a4(fc) && memcmp(hdr->addr4, station_pair->current_random_mac, ETH_ALEN) == 0) {
+						memcpy(hdr->addr4, station_pair->s_base_mac, ETH_ALEN);
+					}
+				}
+			}
+		}	
+	} */
+
+
+
+
+
+   /*  if (sdata->vif.type == NL80211_IFTYPE_AP) {
+        // AP instance
+        printk(KERN_DEBUG "AP: Handling RX packet\n");
+
+        entry = search_by_random_mac(hdr->addr1);
+        if (entry) {
+            memcpy(hdr->addr1, entry->base_mac, ETH_ALEN);
+        }else {
+			printk(KERN_DEBUG " 1 Entry is null\n");
+		}
+
+        entry = search_by_random_mac(hdr->addr2);
+        if (entry) {
+            memcpy(hdr->addr2, entry->base_mac, ETH_ALEN);
+        }
+
+        entry = search_by_random_mac(hdr->addr3);
+        if (entry) {
+            memcpy(hdr->addr3, entry->base_mac, ETH_ALEN);
+        }
+
+        if (ieee80211_has_a4(fc)) {
+            entry = search_by_random_mac(hdr->addr4);
+            if (entry) {
+                memcpy(hdr->addr4, entry->base_mac, ETH_ALEN);
+            }
+        }
+
+    } else if (sdata->vif.type == NL80211_IFTYPE_STATION) {
+        // Station instance
+        printk(KERN_DEBUG "Station: Handling RX packet\n");
+
+        station_pair = get_mac_pair();
+        if (station_pair) {
+            if (memcmp(hdr->addr1, station_pair->current_random_mac, ETH_ALEN) == 0) {
+                memcpy(hdr->addr1, station_pair->s_base_mac, ETH_ALEN);
+            }
+            if (memcmp(hdr->addr2, station_pair->current_random_mac, ETH_ALEN) == 0) {
+                memcpy(hdr->addr2, station_pair->s_base_mac, ETH_ALEN);
+            }
+            if (memcmp(hdr->addr3, station_pair->current_random_mac, ETH_ALEN) == 0) {
+                memcpy(hdr->addr3, station_pair->s_base_mac, ETH_ALEN);
+            }
+            if (ieee80211_has_a4(fc) && memcmp(hdr->addr4, station_pair->current_random_mac, ETH_ALEN) == 0) {
+                memcpy(hdr->addr4, station_pair->s_base_mac, ETH_ALEN);
+            }
+        }
+    } */
+
+    // Continue with the rest of the packet handling...
+    // (The rest of the original function goes here)
+
+
 
 
 

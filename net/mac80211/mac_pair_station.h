@@ -1,7 +1,7 @@
 #ifndef MAC_PAIR_STATION_H
 #define MAC_PAIR_STATION_H
 
-#include <linux/spinlock.h>
+
 #define ETH_ALEN 6
 
 struct mac_pair {
@@ -10,7 +10,7 @@ struct mac_pair {
 };
 
 extern struct mac_pair *station_mac_pair;
-extern spinlock_t mac_pair_lock;
+
 
 void set_mac_pair(const unsigned char *base_mac, const unsigned char *random_mac);
 const struct mac_pair* get_mac_pair(void);
