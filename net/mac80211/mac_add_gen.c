@@ -112,14 +112,22 @@
 
 
 
-void generate_mac_add_sta(struct sk_buff *skb, struct sta_info *sta, int flag_addr, long long int current_tp, unsigned char *r_mac) {
+void generate_mac_add_sta(struct sk_buff *skb, struct sta_info *sta, long long int current_tp, unsigned char *r_mac) {
     struct crypto_shash *shash;
     struct shash_desc *shash_desc;
-    struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+    //struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
     struct ieee80211_key *key;
     unsigned char hash[20];  // Buffer for the hash
     char *data;
     int total_size = ETH_ALEN + 16 + sizeof(current_tp);
+    const u8 *interface_mac_addr;
+    struct ieee80211_tx_info *info;
+	struct ieee80211_sub_if_data *sdata;
+
+
+    info = IEEE80211_SKB_CB(skb);
+	sdata = vif_to_sdata(info->control.vif);
+    interface_mac_addr = sdata->vif.addr;
 
     data = kmalloc(total_size, GFP_KERNEL);
     if (!data) {
@@ -155,13 +163,10 @@ void generate_mac_add_sta(struct sk_buff *skb, struct sta_info *sta, int flag_ad
         printk(KERN_DEBUG "sta in key: %*ph", key->conf.keylen, data);
 
         // Copy the MAC address to data
-        if (flag_addr == 1) {
-            memcpy(data + 16, hdr->addr1, ETH_ALEN); // Use SA as the base MAC address
-            printk(KERN_DEBUG "sta in base mac: %pM", hdr->addr1);
-        } else {
-            memcpy(data + 16, hdr->addr2, ETH_ALEN); // Use DA as the base MAC address
-            printk(KERN_DEBUG "sta in base mac: %pM", hdr->addr2);
-        }
+        
+        memcpy(data + 16, interface_mac_addr, ETH_ALEN); // Use DA as the base MAC address
+        printk(KERN_DEBUG "sta in base mac: %pM", interface_mac_addr);
+        
 
         
 
@@ -194,10 +199,10 @@ void generate_mac_add_sta(struct sk_buff *skb, struct sta_info *sta, int flag_ad
 // here this function is for Ap instance so based select the base mac address based on dest_mac_addr
 
 
-void generate_mac_add_ap(struct ieee80211_local *local, struct sk_buff *skb, struct sta_info *sta, int flag_addr, long long int current_tp, unsigned char *r_mac) {
+void generate_mac_add_ap(struct ieee80211_local *local, struct sk_buff *skb, struct sta_info *sta, long long int current_tp, unsigned char *r_mac) {
     struct crypto_shash *shash;
     struct shash_desc *shash_desc;
-    struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+    //struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
     struct ieee80211_key *key;
     unsigned char hash[20];  // Buffer for the hash
     char *data;
@@ -262,26 +267,20 @@ void generate_mac_add_ap(struct ieee80211_local *local, struct sk_buff *skb, str
 
     if (gen == false) {
         printk(KERN_DEBUG "No PTK for station ");
-        if (flag_addr == 1) {
-            memcpy(r_mac , hdr->addr1, ETH_ALEN); // Use SA as the base MAC address
-            printk(KERN_DEBUG "Ap in base mac: %pM", hdr->addr1);
-        } else {
-            memcpy(r_mac , hdr->addr2, ETH_ALEN); // Use DA as the base MAC address
-            printk(KERN_DEBUG "Ap in base mac: %pM", hdr->addr2);
-        }
+        
+        memcpy(r_mac , dest_mac_addr, ETH_ALEN); // Use SA as the base MAC address
+        printk(KERN_DEBUG "Ap in base mac: %pM", dest_mac_addr);
+        
         
     }
 
     if(gen == true){
 
 
-        if (flag_addr == 1) {
-            memcpy(data + 16 , hdr->addr1, ETH_ALEN); // Use SA as the base MAC address
-            printk(KERN_DEBUG "Ap in base mac: %pM", hdr->addr1);
-        } else {
-            memcpy(data + 16 , hdr->addr2, ETH_ALEN); // Use DA as the base MAC address
-            printk(KERN_DEBUG "Ap in base mac: %pM", hdr->addr2);
-        }
+        
+        memcpy(data + 16 , dest_mac_addr, ETH_ALEN); // Use SA as the base MAC address
+        printk(KERN_DEBUG "Ap in base mac: %pM", dest_mac_addr);
+        
 
             //printk(KERN_DEBUG "Rathan: %*ph", ETH_ALEN, data);
             // Copy the PTK key to data, after the MAC address

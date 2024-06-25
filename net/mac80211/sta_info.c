@@ -312,9 +312,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 	
 	/* printk(KERN_DEBUG "Station is created\n");
-	ktime_get_real_ts64(&ts);
-    sdata->start_time_period = ts.tv_sec / 5;
-	printk(KERN_DEBUG "Station start time period: %lld\n", sdata->start_time_period); */
+	 */
 
 	sta = kzalloc(sizeof(*sta) + hw->sta_data_size, gfp);
 	if (!sta)
