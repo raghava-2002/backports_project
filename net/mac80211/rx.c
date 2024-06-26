@@ -4718,15 +4718,14 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	ieee80211_parse_qos(&rx);
 	ieee80211_verify_alignment(&rx);
 
-	//mac adress change logic goes here
-
 	
+	//random mac address changes back to the base mac address here
 
 	if (local){
 		instance_type = which_instance(local);
 	}
 
-	switch (instance_type) {
+	/* switch (instance_type) {
         case rathan_INSTANCE_STA:
             //printk(KERN_INFO "The instance is a STA (Station)\n");
 			station_pair = get_mac_pair();
@@ -4780,12 +4779,10 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
         default:
             printk(KERN_INFO "The instance type is UNKNOWN\n");
             break;
-    }
+    } */
 	
 	
 	
-	
-
 
 	type = (fc & IEEE80211_FCTL_FTYPE) >> 2;
     subtype = (fc & IEEE80211_FCTL_STYPE) >> 4;

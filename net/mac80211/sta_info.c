@@ -27,6 +27,7 @@
 #include "debugfs_sta.h"
 #include "mesh.h"
 #include "wme.h"
+#include "mac_pair_station.h"
 
 /**
  * DOC: STA information lifetime rules
@@ -244,6 +245,7 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_sub_if_data *sdata,
  */
 void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 {
+	printk(KERN_DEBUG "Station is destroyed\n");
 	if (sta->rate_ctrl)
 		rate_control_free_sta(sta);
 
@@ -308,11 +310,19 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_hw *hw = &local->hw;
 	struct sta_info *sta;
 	struct timespec64 ts;
+	//struct mac_pair *station_mac_pair;
 	int i;
 
 	
-	/* printk(KERN_DEBUG "Station is created\n");
-	 */
+	printk(KERN_DEBUG "Station is created\n");
+	
+
+	// Allocate memory for MAC pair dynamically
+    /* station_mac_pair = kzalloc(sizeof(struct mac_pair), gfp);
+    if (!station_mac_pair) {
+        printk(KERN_DEBUG "Failed to allocate memory for MAC pair\n");
+        return NULL;
+    } */
 
 	sta = kzalloc(sizeof(*sta) + hw->sta_data_size, gfp);
 	if (!sta)

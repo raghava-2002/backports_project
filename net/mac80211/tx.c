@@ -2213,7 +2213,7 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 
 	
 	
-
+	//
 
 
 	//use the below line to print the header of the packet
@@ -2233,28 +2233,25 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 
 					if (entry != NULL) {
 						printk(KERN_DEBUG "Ap case1 tx.c");
-						random_mac = entry->random_mac;
 						gen_flag = true;
 					} else {
 						printk(KERN_DEBUG "Ap case2 tx.c");
 						insert_entry(dest_mac_addr, dest_mac_addr);
-						entry = search_by_base_mac(dest_mac_addr);
-						random_mac = entry->random_mac;
 						gen_flag = false;
 					}
 
 					if (((current_tp) != (sta->sdata->start_time_period)) && gen_flag) {
 						printk(KERN_DEBUG "Ap case3 tx.c");
-						generate_mac_add_ap(local, skb, sta, current_tp, r_mac_address);
-						update_entry_by_base(dest_mac_addr, r_mac_address);
-						random_mac = r_mac_address;
-						printk(KERN_DEBUG "Rathan: curr %lld inter %lld", current_tp, sta->sdata->start_time_period);
+						//it generates random mac for all stations and update them in the table directly
+						generate_mac_add_ap_all(local, current_tp);
+						printk(KERN_DEBUG "Rathan: before curr %lld inter %lld", current_tp, sta->sdata->start_time_period);
 						sta->sdata->start_time_period = current_tp;
 					}
 
 					//memcpy(hdr->addr1, random_mac, ETH_ALEN); //address change we have to verify 4 address and map
 					//replacing base mac with random mac address
-					entry = search_by_base_mac(dest_mac_addr);
+					//uncomment the below code to replace the base mac with random mac
+					/* entry = search_by_base_mac(dest_mac_addr);
 					if (memcmp(dest_mac_addr, hdr->addr1, ETH_ALEN) == 0) {
 						memcpy(hdr->addr1, entry->random_mac, ETH_ALEN);
 						printk(KERN_DEBUG "tx addr1 changes\n");
@@ -2269,7 +2266,7 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 						printk(KERN_DEBUG "tx addr4 changes\n");
 					} else {
 						printk(KERN_DEBUG "Rathan: address not found\n");
-					}
+					} */
 					
 					printk(KERN_DEBUG "Rathan: curr %lld inter %lld", current_tp, sta->sdata->start_time_period);
 					print_mac_translation_table();
@@ -2302,7 +2299,8 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 
 					//memcpy(hdr->addr2, random_mac, ETH_ALEN); //address change we have to verify 4 address and map
 					//replacing base mac with random mac address
-					entry = search_by_base_mac(interface_mac_addr);
+					//uncomment the below code to replace the base mac with random mac
+					/* entry = search_by_base_mac(interface_mac_addr);
 					if (memcmp(interface_mac_addr, hdr->addr1, ETH_ALEN) == 0) {
 						memcpy(hdr->addr1, entry->random_mac, ETH_ALEN);
 						printk(KERN_DEBUG "tx sta addr1 changes\n");
@@ -2317,8 +2315,9 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 						printk(KERN_DEBUG "tx sta addr4 changes\n");
 					} else {
 						printk(KERN_DEBUG "Rathan: address not found\n");
-					}
+					} */
 					printk(KERN_DEBUG "Rathan: curr %lld inter %lld", current_tp, sta->start_time_period);
+					//print_mac_translation_table();
 					print_mac_pair();
 					break;
 
