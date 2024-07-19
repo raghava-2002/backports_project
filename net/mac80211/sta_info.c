@@ -246,6 +246,8 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_sub_if_data *sdata,
 void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 {
 	printk(KERN_DEBUG "Station is destroyed\n");
+	//here we have to delete the entry from the MAT table or the MAC pair table
+
 	if (sta->rate_ctrl)
 		rate_control_free_sta(sta);
 
@@ -336,7 +338,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	ktime_get_real_ts64(&ts);
-    sta->start_time_period = ts.tv_sec / 5;
+    sta->start_time_period = ts.tv_sec / 15;
 	printk(KERN_DEBUG "Station start time period: %lld\n", sta->start_time_period);
 
 	spin_lock_init(&sta->lock);

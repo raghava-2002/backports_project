@@ -990,7 +990,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	
 	printk(KERN_DEBUG "Ap created\n");
 	ktime_get_real_ts64(&ts);
-    sdata->start_time_period = ts.tv_sec / 5;
+    sdata->start_time_period = ts.tv_sec / 15;
 	printk(KERN_DEBUG "start time period %lld", sdata->start_time_period);
 	if (old)
 		return -EALREADY;

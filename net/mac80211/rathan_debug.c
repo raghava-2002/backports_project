@@ -5,6 +5,7 @@
 
 
 #include "ieee80211_i.h"
+#include "sta_info.h"
 
 
 #include "rathan_debug.h"
@@ -158,3 +159,139 @@ enum rathan_instance_type which_instance(struct ieee80211_local *local) {
     }
 
 }
+
+
+//local to sta_info
+
+/* protected by RCU */
+/* struct sta_info *local_to_sta_info(struct ieee80211_local *local,
+			      const u8 *addr)
+{
+	
+	struct ieee80211_sta *pubsta;
+    struct rhlist_head *tmp;
+    struct sta_info *sta;
+
+    rcu_read_lock();
+    for_each_sta_info(local, addr, sta, tmp) {
+        printk(KERN_DEBUG "Found sta_info for %pM\n", sta->sta.addr);
+        if (ether_addr_equal(sta->sta.addr, addr)) {
+            rcu_read_unlock();
+            return sta;
+        }
+    }
+    rcu_read_unlock();
+
+    return NULL;  // Not found
+} */
+
+
+//this is overall function to get sta_info for both sta and AP
+/* struct sta_info *local_to_sta_info(struct ieee80211_local *local)
+{
+    struct sta_info *sta;
+    //const u8 *dest_mac_addr;
+    
+    
+    list_for_each_entry_rcu(sta, &local->sta_list, list) {
+        //dest_mac_addr = sta->sta.addr;
+       //printk(KERN_DEBUG "Found sta_info for %pM\n", dest_mac_addr);
+       //printk(KERN_DEBUG "started station %lld ", sta->start_time_period);
+       if (sta){
+            return sta;
+       }
+       
+       printk(KERN_DEBUG "APA station %lld ", sta->sdata->start_time_period);
+    }
+
+    return NULL; //not fund sta
+} */
+
+/* void testing (struct ieee80211_local *local){
+    struct sta_info *sta;
+    //const u8 *dest_mac_addr;
+    
+    printk(KERN_DEBUG "APA hello ");
+    list_for_each_entry_rcu(sta, &local->sta_list, list) {
+        //dest_mac_addr = sta->sta.addr;
+       //printk(KERN_DEBUG "Found sta_info for %pM\n", dest_mac_addr);
+       //printk(KERN_DEBUG "started station %lld ", sta->start_time_period);
+       
+       printk(KERN_DEBUG "APA station %lld ", sta->start_time_period);
+    }
+    printk(KERN_DEBUG "APA hello done ");
+
+} */
+
+
+
+
+
+struct ieee80211_sub_if_data *get_ap_sdata(struct ieee80211_local *local) {
+    struct ieee80211_sub_if_data *sdata;
+
+    rcu_read_lock();
+    list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+        if (sdata->vif.type == NL80211_IFTYPE_AP) {
+            rcu_read_unlock();
+            return sdata;
+        }
+    }
+    rcu_read_unlock();
+    return NULL; // AP interface not found
+}
+
+struct sta_info *local_to_sta_info(struct ieee80211_local *local) {
+    struct sta_info *sta;
+    
+    list_for_each_entry_rcu(sta, &local->sta_list, list) {
+       
+       //printk(KERN_DEBUG "APA station %lld ", sta->start_time_period);
+       return sta;
+    }
+    return NULL; //not found sta
+}
+
+/* void get_ap_sdata(struct ieee80211_local *local) {
+    struct ieee80211_sub_if_data *sdata;
+
+    rcu_read_lock();
+    list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+        if (sdata->vif.type == NL80211_IFTYPE_AP) {
+            rcu_read_unlock();
+            //return sdata;
+            printk(KERN_DEBUG "APA station %lld ", sdata->start_time_period);
+        }
+    }
+    rcu_read_unlock();
+    printk(KERN_DEBUG "APA hello done ");
+    //return NULL; // AP interface not found
+} */
+
+
+
+
+
+
+//this is for checking if the station is authorized
+
+bool is_sta_authorized(struct ieee80211_sub_if_data *sdata, const u8 *addr) {
+    struct sta_info *sta;
+    bool authorized = false;
+
+    rcu_read_lock();
+    sta = sta_info_get(sdata, addr);
+    if (sta) {
+        if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
+            authorized = true;
+        }
+    }
+    rcu_read_unlock();
+
+    return authorized;
+}
+
+//useage of is_sta_authorized
+/* if (!is_sta_authorized(sdata, dest_mac_addr)) {
+        				printk(KERN_ERR "STA is not authorized: %pM\n", dest_mac_addr);
+    				}  */

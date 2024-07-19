@@ -34,6 +34,7 @@
 #include "mac_translation_table.h"
 #include "mac_pair_station.h"
 #include "rathan_debug.h"
+#include "mac_add_gen.h"
 
 extern long long int interval_tp;
 
@@ -1632,6 +1633,7 @@ ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
 			// deleting the entry in the table or the mac pair 
 			if (rx->sdata->vif.type == NL80211_IFTYPE_STATION) {
 				printk(KERN_INFO "working on the station instance\n");
+				s_delete_entry(hdr->addr1);
 			}else if (rx->sdata->vif.type == NL80211_IFTYPE_AP) {
 				printk(KERN_INFO "working on the AP instance\n");
 				//delete_entry(hdr->addr2);
@@ -4665,7 +4667,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 					 struct napi_struct *napi)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata, *sdata_instance;
 	struct ieee80211_hdr *hdr;
 	__le16 fc;
 	struct ieee80211_rx_data rx;
@@ -4674,9 +4676,12 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	//Rathan work here
 	//struct net_device *dev = skb->dev;
 	
-	const struct mac_pair *station_pair;
+	struct mac_pair *s_entry;
 	struct mac_translation_entry *entry;
 	enum rathan_instance_type instance_type;
+	long long int current_tp;
+	const u8 *instance_mac = hw->wiphy->perm_addr;
+	struct sta_info *sta_instance;
 
 	u16 type, subtype;
 
@@ -4690,7 +4695,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	rx.napi = napi;
 
 	//this is the place where we can change the mac address of the packet back to the base mac
-
+	current_tp = (ktime_get_real_seconds()/15);
 
 	/* printk(KERN_DEBUG "Packet received\n");
 	printk(KERN_DEBUG "interval tp %lld", (long long int)interval_tp); */
@@ -4720,67 +4725,97 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 
 	
 	//random mac address changes back to the base mac address here
-
+	//printk(KERN_DEBUG "Rx");
 	if (local){
 		instance_type = which_instance(local);
 	}
 
-	/* switch (instance_type) {
+	//print_packet_header(skb);
+	
+
+	//here mac pair struture is changed as mac pair table, it is similar to the mac translation table
+	switch (instance_type) {
         case rathan_INSTANCE_STA:
             //printk(KERN_INFO "The instance is a STA (Station)\n");
-			station_pair = get_mac_pair();
-			 if (station_pair) {
-				if (memcmp(hdr->addr1, station_pair->current_random_mac, ETH_ALEN) == 0) {
-					memcpy(hdr->addr1, station_pair->s_base_mac, ETH_ALEN);
-					printk(KERN_DEBUG "sta 1 Mac address changed");
-				}
-				if (memcmp(hdr->addr2, station_pair->current_random_mac, ETH_ALEN) == 0) {
-					memcpy(hdr->addr2, station_pair->s_base_mac, ETH_ALEN);
-					printk(KERN_DEBUG "sta 2 Mac address changed");
-				}
-				if (memcmp(hdr->addr3, station_pair->current_random_mac, ETH_ALEN) == 0) {
-					memcpy(hdr->addr3, station_pair->s_base_mac, ETH_ALEN);
-					printk(KERN_DEBUG "sta 3 Mac address changed");
-				}
-				if (memcmp(hdr->addr4, station_pair->current_random_mac, ETH_ALEN) == 0) {
-					memcpy(hdr->addr4, station_pair->s_base_mac, ETH_ALEN);
-					printk(KERN_DEBUG "sta 4 Mac address changed");
-				}
+			//printk(KERN_DEBUG "Instance mac: %pM\n", instance_mac);
+			
+			//sta_instance = local_to_sta_info(local);
+			//if (sta_instance) {
+				//printk(KERN_DEBUG "STA RX instance: %lld\n", sta_instance->start_time_period);
+				//if (current_tp != sta_instance->start_time_period ) {
+					//generate_mac_add_sta(skb, sta_instance, current_tp);
+					//sta_instance->start_time_period = current_tp;
+				//}
+			//}
+			
+
+			s_entry = s_search_by_random_mac(hdr->addr1);
+			if (s_entry) {
+				memcpy(hdr->addr1, s_entry->s_base_mac, ETH_ALEN);
+				printk(KERN_DEBUG "STA RX: addr1 changed back");
+			}
+
+			s_entry = s_search_by_random_mac(hdr->addr2);
+			if (s_entry) {
+				memcpy(hdr->addr2, s_entry->s_base_mac, ETH_ALEN);
+				printk(KERN_DEBUG "STA RX: addr2 changed back");
+			}
+
+			s_entry = s_search_by_random_mac(hdr->addr3);
+			if (s_entry) {
+				memcpy(hdr->addr3, s_entry->s_base_mac, ETH_ALEN);
+				printk(KERN_DEBUG "STA RX: addr3 changed back");
+			}
+
+			
+			s_entry = s_search_by_random_mac(hdr->addr4);
+			if (s_entry) {
+				memcpy(hdr->addr4, s_entry->s_base_mac, ETH_ALEN);
+				printk(KERN_DEBUG "STA RX: addr4 changed back");
 			}
             break;
         case rathan_INSTANCE_AP:
-            //printk(KERN_INFO "The instance is an AP (Access Point)\n");
+            /* printk(KERN_INFO "The instance is an AP (Access Point)\n");
+			printk(KERN_DEBUG "Interface: %pM\n", instance_mac);*/
+			sdata_instance = get_ap_sdata(local);
+			if (sdata_instance) {
+				//printk(KERN_DEBUG "AP RX instance: %lld\n", sdata_instance->start_time_period);
+				if (current_tp != sdata_instance->start_time_period ) {
+					generate_mac_add_ap_all(local, current_tp);
+					sdata_instance->start_time_period = current_tp;
+				}
+			}
 			entry = search_by_random_mac(hdr->addr1);
 			if (entry) {
 				memcpy(hdr->addr1, entry->base_mac, ETH_ALEN);
-				printk(KERN_DEBUG "ap 1 Mac address changed");
+				printk(KERN_DEBUG "AP RX: addr1 changed back");
 			}
 
 			entry = search_by_random_mac(hdr->addr2);
 			if (entry) {
 				memcpy(hdr->addr2, entry->base_mac, ETH_ALEN);
-				printk(KERN_DEBUG "ap 2 Mac address changed");
+				printk(KERN_DEBUG "AP RX: addr2 changed back");
 			}
 
 			entry = search_by_random_mac(hdr->addr3);
 			if (entry) {
 				memcpy(hdr->addr3, entry->base_mac, ETH_ALEN);
-				printk(KERN_DEBUG "ap 3 Mac address changed");
+				printk(KERN_DEBUG "AP RX: addr3 changed back");
 			}
 
 			
 			entry = search_by_random_mac(hdr->addr4);
 			if (entry) {
 				memcpy(hdr->addr4, entry->base_mac, ETH_ALEN);
-				printk(KERN_DEBUG "ap 4 Mac address changed");
+				printk(KERN_DEBUG "AP RX: addr4 changed back");
 			}
             break;
         case rathan_INSTANCE_UNKNOWN:
         default:
             printk(KERN_INFO "The instance type is UNKNOWN\n");
             break;
-    } */
-	
+    }
+
 	
 	
 
@@ -4805,6 +4840,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 
 		if (pubsta) {
 			rx.sta = container_of(pubsta, struct sta_info, sta);
+			//printk(KERN_DEBUG "addr station is  %pM\n", pubsta->addr);
 			rx.sdata = rx.sta->sdata;
 			if (ieee80211_prepare_and_rx_handle(&rx, skb, true))
 				return;
