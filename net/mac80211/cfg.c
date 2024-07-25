@@ -23,6 +23,7 @@
 #include "rate.h"
 #include "mesh.h"
 #include "wme.h"
+#include "rathan_debug.h"
 
 static void ieee80211_set_mu_mimo_follow(struct ieee80211_sub_if_data *sdata,
 					 struct vif_params *params)
@@ -990,7 +991,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	
 	printk(KERN_DEBUG "Ap created\n");
 	ktime_get_real_ts64(&ts);
-    sdata->start_time_period = ts.tv_sec / 15;
+    sdata->start_time_period = ts.tv_sec / RND_TP;
 	printk(KERN_DEBUG "start time period %lld", sdata->start_time_period);
 	if (old)
 		return -EALREADY;

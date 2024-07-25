@@ -4695,7 +4695,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	rx.napi = napi;
 
 	//this is the place where we can change the mac address of the packet back to the base mac
-	current_tp = (ktime_get_real_seconds()/15);
+	current_tp = (ktime_get_real_seconds()/RND_TP);
 
 	/* printk(KERN_DEBUG "Packet received\n");
 	printk(KERN_DEBUG "interval tp %lld", (long long int)interval_tp); */
@@ -4731,7 +4731,8 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	}
 
 	//print_packet_header(skb);
-	
+
+	//KEYWORD TO SEARCH: SRIJA
 
 	//here mac pair struture is changed as mac pair table, it is similar to the mac translation table
 	switch (instance_type) {
@@ -4739,39 +4740,32 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
             //printk(KERN_INFO "The instance is a STA (Station)\n");
 			//printk(KERN_DEBUG "Instance mac: %pM\n", instance_mac);
 			
-			//sta_instance = local_to_sta_info(local);
-			//if (sta_instance) {
-				//printk(KERN_DEBUG "STA RX instance: %lld\n", sta_instance->start_time_period);
-				//if (current_tp != sta_instance->start_time_period ) {
-					//generate_mac_add_sta(skb, sta_instance, current_tp);
-					//sta_instance->start_time_period = current_tp;
-				//}
-			//}
 			
+			//printk(KERN_DEBUG "sta RX skb: seq number %u\n", le16_to_cpu(hdr->seq_ctrl) >> 4);
 
 			s_entry = s_search_by_random_mac(hdr->addr1);
 			if (s_entry) {
 				memcpy(hdr->addr1, s_entry->s_base_mac, ETH_ALEN);
-				printk(KERN_DEBUG "STA RX: addr1 changed back");
+				//printk(KERN_DEBUG "STA RX: addr1 changed back");
 			}
 
 			s_entry = s_search_by_random_mac(hdr->addr2);
 			if (s_entry) {
 				memcpy(hdr->addr2, s_entry->s_base_mac, ETH_ALEN);
-				printk(KERN_DEBUG "STA RX: addr2 changed back");
+				//printk(KERN_DEBUG "STA RX: addr2 changed back");
 			}
 
 			s_entry = s_search_by_random_mac(hdr->addr3);
 			if (s_entry) {
 				memcpy(hdr->addr3, s_entry->s_base_mac, ETH_ALEN);
-				printk(KERN_DEBUG "STA RX: addr3 changed back");
+				//printk(KERN_DEBUG "STA RX: addr3 changed back");
 			}
 
 			
 			s_entry = s_search_by_random_mac(hdr->addr4);
 			if (s_entry) {
 				memcpy(hdr->addr4, s_entry->s_base_mac, ETH_ALEN);
-				printk(KERN_DEBUG "STA RX: addr4 changed back");
+				//printk(KERN_DEBUG "STA RX: addr4 changed back");
 			}
             break;
         case rathan_INSTANCE_AP:
@@ -4783,31 +4777,32 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 				if (current_tp != sdata_instance->start_time_period ) {
 					generate_mac_add_ap_all(local, current_tp);
 					sdata_instance->start_time_period = current_tp;
+					
 				}
 			}
 			entry = search_by_random_mac(hdr->addr1);
 			if (entry) {
 				memcpy(hdr->addr1, entry->base_mac, ETH_ALEN);
-				printk(KERN_DEBUG "AP RX: addr1 changed back");
+				//printk(KERN_DEBUG "AP RX: addr1 changed back");
 			}
 
 			entry = search_by_random_mac(hdr->addr2);
 			if (entry) {
 				memcpy(hdr->addr2, entry->base_mac, ETH_ALEN);
-				printk(KERN_DEBUG "AP RX: addr2 changed back");
+				//printk(KERN_DEBUG "AP RX: addr2 changed back");
 			}
 
 			entry = search_by_random_mac(hdr->addr3);
 			if (entry) {
 				memcpy(hdr->addr3, entry->base_mac, ETH_ALEN);
-				printk(KERN_DEBUG "AP RX: addr3 changed back");
+				//printk(KERN_DEBUG "AP RX: addr3 changed back");
 			}
 
 			
 			entry = search_by_random_mac(hdr->addr4);
 			if (entry) {
 				memcpy(hdr->addr4, entry->base_mac, ETH_ALEN);
-				printk(KERN_DEBUG "AP RX: addr4 changed back");
+				//printk(KERN_DEBUG "AP RX: addr4 changed back");
 			}
             break;
         case rathan_INSTANCE_UNKNOWN:

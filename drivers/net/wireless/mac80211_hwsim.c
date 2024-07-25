@@ -3462,6 +3462,9 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 	}
 
 	txi->status.ack_signal = nla_get_u32(info->attrs[HWSIM_ATTR_SIGNAL]);
+	//rathan Acknowlegement work should be done here 
+	//KEYWORD TO SEARCH: SRIJA
+	// import the table here and send the ack
 
 	if (!(hwsim_flags & HWSIM_TX_CTL_NO_ACK) &&
 	   (hwsim_flags & HWSIM_TX_STAT_ACK)) {

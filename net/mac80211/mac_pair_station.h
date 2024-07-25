@@ -1,8 +1,8 @@
 #ifndef MAC_PAIR_STATION_H
 #define MAC_PAIR_STATION_H
 
-
-#define ETH_ALEN 6
+#include <linux/ieee80211.h>
+//#define ETH_ALEN 6
 
 struct mac_pair {
     unsigned char s_base_mac[ETH_ALEN];

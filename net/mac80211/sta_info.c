@@ -28,6 +28,7 @@
 #include "mesh.h"
 #include "wme.h"
 #include "mac_pair_station.h"
+#include "rathan_debug.h"
 
 /**
  * DOC: STA information lifetime rules
@@ -338,7 +339,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	ktime_get_real_ts64(&ts);
-    sta->start_time_period = ts.tv_sec / 15;
+    sta->start_time_period = ts.tv_sec / RND_TP;
 	printk(KERN_DEBUG "Station start time period: %lld\n", sta->start_time_period);
 
 	spin_lock_init(&sta->lock);

@@ -3,6 +3,7 @@
 
 #include <linux/skbuff.h>
 #include <net/mac80211.h>
+#include <linux/ieee80211.h>
 
 //void generate_mac_add_sta(struct sk_buff *skb, struct sta_info *sta, long long int current_tp, unsigned char *r_mac);
 void generate_mac_add_sta(struct sk_buff *skb, struct sta_info *sta, long long int current_tp);

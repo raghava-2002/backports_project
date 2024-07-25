@@ -7,6 +7,7 @@ enum rathan_instance_type {
     rathan_INSTANCE_AP
 };
 
+#define RND_TP 5
 
 void print_packet_header(struct sk_buff *skb);
 enum rathan_instance_type which_instance (struct ieee80211_local *local);

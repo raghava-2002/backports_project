@@ -32,7 +32,7 @@
 
 
 
-#define ETH_ALEN 6
+// #define ETH_ALEN 6 no need to define this one more time 
 // i think i need to add more headers here then only it will work.
 
 
@@ -403,6 +403,10 @@ void generate_mac_add_ap_all(struct ieee80211_local *local, long long int curren
             //printk(KERN_DEBUG "Generated random MAC: %pM", r_mac);
         }
 
+        //sequence reset
+        sta->sdata->sequence_number = 16;
+        //printk(KERN_DEBUG "new address generated ");
+
         // Update the MAT table with the generated MAC address
         update_entry_by_base(dest_mac_addr, r_mac);
     }
@@ -486,7 +490,10 @@ void generate_mac_add_sta(struct sk_buff *skb, struct sta_info *sta, long long i
 
     // Copy the generated MAC address to r_mac
     memcpy(r_mac, hash, ETH_ALEN);
-    printk(KERN_DEBUG "Rathan: sta rand mac %pM", r_mac);
+    //printk(KERN_DEBUG "Rathan: sta rand mac %pM", r_mac);
+
+    //sequence reset
+    //sta->sdata->sequence_number = 16;
 
     // Update the MAC pair table
     s_update_entry_by_base(interface_mac_addr, r_mac); // Insert the new entry
