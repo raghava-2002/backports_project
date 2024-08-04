@@ -295,3 +295,50 @@ bool is_sta_authorized(struct ieee80211_sub_if_data *sdata, const u8 *addr) {
 /* if (!is_sta_authorized(sdata, dest_mac_addr)) {
         				printk(KERN_ERR "STA is not authorized: %pM\n", dest_mac_addr);
     				}  */
+
+
+
+//here below is work with ccmp parameter i.e, PN/Nounce
+
+void print_pn(u8 pn[6]) {
+    printk(KERN_DEBUG "Current PN: %02x %02x %02x %02x %02x %02x\n",
+           pn[0], pn[1], pn[2], pn[3], pn[4], pn[5]);
+}
+
+void print_current_pn(struct ieee80211_key *key) {
+    int i;
+
+    
+    // Check if the key is a CCMP key and has rx_pn
+    if (!key || !key->u.ccmp.rx_pn) {
+        printk(KERN_DEBUG "Key is not a CCMP key or does not have rx_pn.\n");
+        return;
+    }
+
+    rcu_read_lock();
+    // Print the PN for each TID and the management frames
+    for (i = 0; i < IEEE80211_NUM_TIDS + 1; i++) {
+        printk(KERN_DEBUG "TID %d PN: ", i);
+        print_pn(key->u.ccmp.rx_pn[i]);
+    }
+    rcu_read_unlock();
+}
+
+/* void print_sta_pn(struct ieee80211_local *local) {
+    struct sta_info *sta;
+    struct ieee80211_key *key;
+
+    rcu_read_lock();
+
+    list_for_each_entry_rcu(sta, &local->sta_list, list) {
+        printk(KERN_DEBUG "Printing PNs for STA %pM\n", sta->sta.addr);
+
+        list_for_each_entry_rcu(key, &sta->ptk_list, list) {
+            print_current_pn(key);
+        }
+    }
+
+    rcu_read_unlock();
+} */
+
+

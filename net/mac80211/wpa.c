@@ -412,6 +412,7 @@ static inline void ccmp_hdr2pn(u8 *pn, u8 *hdr)
 }
 
 
+//skb encrypted using the CCMP encryption
 static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb,
 			    unsigned int mic_len)
 {
@@ -422,6 +423,7 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb,
 	u8 *pos;
 	u8 pn[6];
 	u64 pn64;
+	u64 rndpn64;
 	u8 aad[CCM_AAD_LEN];
 	u8 b_0[AES_BLOCK_SIZE];
 	/*
@@ -500,6 +502,13 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb,
 	hdr = (struct ieee80211_hdr *) pos;
 	pos += hdrlen;
 
+	//can be reseted the PN here before utilizing based on the time period it is present 
+	// Set PN to a unique value (e.g., 0x123456789ABC)
+    rndpn64 = 0x123456789ABCULL;
+    //atomic64_set(&key->conf.tx_pn, rndpn64);
+
+
+
 	pn64 = atomic64_inc_return(&key->conf.tx_pn);
 
 	pn[5] = pn64;
@@ -508,6 +517,17 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb,
 	pn[2] = pn64 >> 24;
 	pn[1] = pn64 >> 32;
 	pn[0] = pn64 >> 40;
+
+
+	//i found these some where (debugfs_key.c) to set PN 
+	/* PN is a 48-bit counter */
+	/* 	if (pn >= (1ULL << 48))
+			return -ERANGE;
+		atomic64_set(&key->conf.tx_pn, pn);
+
+	 */
+
+	//ssprintk(KERN_DEBUG "Current PN/Nonce at encryption: %02x %02x %02x %02x %02x %02x\n", pn[0], pn[1], pn[2], pn[3], pn[4], pn[5]);
 
 	ccmp_pn2hdr(pos, pn, key->conf.keyidx);
 
@@ -563,6 +583,7 @@ void generate_identifier(unsigned char *nonce1, unsigned char *nonce2, unsigned 
 
 */
 
+//this function is used to encrypt the data using the CCMP encryption called by the ieee80211_tx_h_encrypt function in tx.c
 ieee80211_tx_result
 ieee80211_crypto_ccmp_encrypt(struct ieee80211_tx_data *tx,
 			      unsigned int mic_len)

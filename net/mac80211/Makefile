@@ -36,7 +36,8 @@ mac80211-y := \
 	mac_translation_table.o \
 	mac_pair_station.o \
 	rathan_debug.o \
-	mac_add_gen.o
+	mac_add_gen.o \
+	mac_randomizer.o 
 
 mac80211-$(CPTCFG_MAC80211_LEDS) += led.o
 mac80211-$(CPTCFG_MAC80211_DEBUGFS) += \

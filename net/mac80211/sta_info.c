@@ -29,6 +29,7 @@
 #include "wme.h"
 #include "mac_pair_station.h"
 #include "rathan_debug.h"
+#include "mac_randomizer.h"
 
 /**
  * DOC: STA information lifetime rules

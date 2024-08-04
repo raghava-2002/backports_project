@@ -35,6 +35,7 @@
 #include "mac_pair_station.h"
 #include "rathan_debug.h"
 #include "mac_add_gen.h"
+#include "mac_randomizer.h"
 
 extern long long int interval_tp;
 
@@ -4680,8 +4681,8 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	struct mac_translation_entry *entry;
 	enum rathan_instance_type instance_type;
 	long long int current_tp;
-	const u8 *instance_mac = hw->wiphy->perm_addr;
-	struct sta_info *sta_instance;
+	//const u8 *instance_mac = hw->wiphy->perm_addr;
+	
 
 	u16 type, subtype;
 
@@ -4733,85 +4734,88 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	//print_packet_header(skb);
 
 	//KEYWORD TO SEARCH: SRIJA
+	
 
 	//here mac pair struture is changed as mac pair table, it is similar to the mac translation table
-	switch (instance_type) {
-        case rathan_INSTANCE_STA:
-            //printk(KERN_INFO "The instance is a STA (Station)\n");
-			//printk(KERN_DEBUG "Instance mac: %pM\n", instance_mac);
-			
-			
-			//printk(KERN_DEBUG "sta RX skb: seq number %u\n", le16_to_cpu(hdr->seq_ctrl) >> 4);
+	if(RND_MAC){
+		switch (instance_type) {
+			case rathan_INSTANCE_STA:
+				//printk(KERN_INFO "The instance is a STA (Station)\n");
+				//printk(KERN_DEBUG "Instance mac: %pM\n", instance_mac);
+				
+				
+				//printk(KERN_DEBUG "sta RX skb: seq number %u\n", le16_to_cpu(hdr->seq_ctrl) >> 4);
 
-			s_entry = s_search_by_random_mac(hdr->addr1);
-			if (s_entry) {
-				memcpy(hdr->addr1, s_entry->s_base_mac, ETH_ALEN);
-				//printk(KERN_DEBUG "STA RX: addr1 changed back");
-			}
-
-			s_entry = s_search_by_random_mac(hdr->addr2);
-			if (s_entry) {
-				memcpy(hdr->addr2, s_entry->s_base_mac, ETH_ALEN);
-				//printk(KERN_DEBUG "STA RX: addr2 changed back");
-			}
-
-			s_entry = s_search_by_random_mac(hdr->addr3);
-			if (s_entry) {
-				memcpy(hdr->addr3, s_entry->s_base_mac, ETH_ALEN);
-				//printk(KERN_DEBUG "STA RX: addr3 changed back");
-			}
-
-			
-			s_entry = s_search_by_random_mac(hdr->addr4);
-			if (s_entry) {
-				memcpy(hdr->addr4, s_entry->s_base_mac, ETH_ALEN);
-				//printk(KERN_DEBUG "STA RX: addr4 changed back");
-			}
-            break;
-        case rathan_INSTANCE_AP:
-            /* printk(KERN_INFO "The instance is an AP (Access Point)\n");
-			printk(KERN_DEBUG "Interface: %pM\n", instance_mac);*/
-			sdata_instance = get_ap_sdata(local);
-			if (sdata_instance) {
-				//printk(KERN_DEBUG "AP RX instance: %lld\n", sdata_instance->start_time_period);
-				if (current_tp != sdata_instance->start_time_period ) {
-					generate_mac_add_ap_all(local, current_tp);
-					sdata_instance->start_time_period = current_tp;
-					
+				s_entry = s_search_by_random_mac(hdr->addr1);
+				if (s_entry) {
+					memcpy(hdr->addr1, s_entry->s_base_mac, ETH_ALEN);
+					//printk(KERN_DEBUG "STA RX: addr1 changed back");
 				}
-			}
-			entry = search_by_random_mac(hdr->addr1);
-			if (entry) {
-				memcpy(hdr->addr1, entry->base_mac, ETH_ALEN);
-				//printk(KERN_DEBUG "AP RX: addr1 changed back");
-			}
 
-			entry = search_by_random_mac(hdr->addr2);
-			if (entry) {
-				memcpy(hdr->addr2, entry->base_mac, ETH_ALEN);
-				//printk(KERN_DEBUG "AP RX: addr2 changed back");
-			}
+				s_entry = s_search_by_random_mac(hdr->addr2);
+				if (s_entry) {
+					memcpy(hdr->addr2, s_entry->s_base_mac, ETH_ALEN);
+					//printk(KERN_DEBUG "STA RX: addr2 changed back");
+				}
 
-			entry = search_by_random_mac(hdr->addr3);
-			if (entry) {
-				memcpy(hdr->addr3, entry->base_mac, ETH_ALEN);
-				//printk(KERN_DEBUG "AP RX: addr3 changed back");
-			}
+				s_entry = s_search_by_random_mac(hdr->addr3);
+				if (s_entry) {
+					memcpy(hdr->addr3, s_entry->s_base_mac, ETH_ALEN);
+					//printk(KERN_DEBUG "STA RX: addr3 changed back");
+				}
 
-			
-			entry = search_by_random_mac(hdr->addr4);
-			if (entry) {
-				memcpy(hdr->addr4, entry->base_mac, ETH_ALEN);
-				//printk(KERN_DEBUG "AP RX: addr4 changed back");
-			}
-            break;
-        case rathan_INSTANCE_UNKNOWN:
-        default:
-            printk(KERN_INFO "The instance type is UNKNOWN\n");
-            break;
-    }
+				
+				s_entry = s_search_by_random_mac(hdr->addr4);
+				if (s_entry) {
+					memcpy(hdr->addr4, s_entry->s_base_mac, ETH_ALEN);
+					//printk(KERN_DEBUG "STA RX: addr4 changed back");
+				}
+				break;
+			case rathan_INSTANCE_AP:
+				//printk(KERN_INFO "The instance is an AP (Access Point)\n");
+				//printk(KERN_DEBUG "Interface: %pM\n", instance_mac);
+				sdata_instance = get_ap_sdata(local);
+				if (sdata_instance) {
+					//printk(KERN_DEBUG "AP RX current %lld instance: %lld\n", current_tp, sdata_instance->start_time_period);
+					if (current_tp != sdata_instance->start_time_period ) {
+						//printk(KERN_DEBUG " AP RX: New Time Period\n");
+						generate_mac_add_ap_all(local, current_tp);
+						sdata_instance->start_time_period = current_tp;
+						
+					}
+				}
+				entry = search_by_random_mac(hdr->addr1);
+				if (entry) {
+					memcpy(hdr->addr1, entry->base_mac, ETH_ALEN);
+					//printk(KERN_DEBUG "AP RX: addr1 changed back");
+				}
 
-	
+				entry = search_by_random_mac(hdr->addr2);
+				if (entry) {
+					memcpy(hdr->addr2, entry->base_mac, ETH_ALEN);
+					//printk(KERN_DEBUG "AP RX: addr2 changed back");
+				}
+
+				entry = search_by_random_mac(hdr->addr3);
+				if (entry) {
+					memcpy(hdr->addr3, entry->base_mac, ETH_ALEN);
+					//printk(KERN_DEBUG "AP RX: addr3 changed back");
+				}
+
+				
+				entry = search_by_random_mac(hdr->addr4);
+				if (entry) {
+					memcpy(hdr->addr4, entry->base_mac, ETH_ALEN);
+					//printk(KERN_DEBUG "AP RX: addr4 changed back");
+				}
+				break;
+			case rathan_INSTANCE_UNKNOWN:
+			default:
+				printk(KERN_INFO "The instance type is UNKNOWN\n");
+				break;
+		}
+
+	}
 	
 
 	type = (fc & IEEE80211_FCTL_FTYPE) >> 2;

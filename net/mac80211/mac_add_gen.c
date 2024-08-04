@@ -30,6 +30,9 @@
 
 #include "mac_add_gen.h"
 
+#include "rathan_debug.h"
+#include "mac_randomizer.h"
+
 
 
 // #define ETH_ALEN 6 no need to define this one more time 
@@ -116,86 +119,7 @@
 
 
 
-/* void generate_mac_add_sta(struct sk_buff *skb, struct sta_info *sta, long long int current_tp, unsigned char *r_mac) {
-    struct crypto_shash *shash;
-    struct shash_desc *shash_desc;
-    //struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-    struct ieee80211_key *key;
-    unsigned char hash[20];  // Buffer for the hash
-    char *data;
-    int total_size = ETH_ALEN + 16 + sizeof(current_tp);
-    const u8 *interface_mac_addr;
-    struct ieee80211_tx_info *info;
-	struct ieee80211_sub_if_data *sdata;
 
-
-    info = IEEE80211_SKB_CB(skb);
-	sdata = vif_to_sdata(info->control.vif);
-    interface_mac_addr = sdata->vif.addr;
-
-    data = kmalloc(total_size, GFP_KERNEL);
-    if (!data) {
-        printk(KERN_ERR "Failed to allocate data\n");
-        return;
-    }
-
-    // Initialize the crypto hash
-    shash = crypto_alloc_shash("sha1", 0, 0);
-    if (IS_ERR(shash)) {
-        printk(KERN_ERR "Failed to allocate crypto hash\n");
-        kfree(data);
-        return;
-    }
-
-    shash_desc = kmalloc(sizeof(struct shash_desc) + crypto_shash_descsize(shash), GFP_KERNEL);
-    if (!shash_desc) {
-        printk(KERN_ERR "Failed to allocate shash_desc\n");
-        crypto_free_shash(shash);
-        kfree(data);
-        return;
-    }
-
-    shash_desc->tfm = shash;
-
-    if (sta && (key = rcu_dereference(sta->ptk[sta->ptk_idx]))) {
-        //printk(KERN_DEBUG "Rathan: ptk key %*ph", key->conf.keylen, key->conf.key);
-        //printk(KERN_DEBUG "Rathan: current time period %lld", current_tp);
-
-        //printk(KERN_DEBUG "Rathan: %*ph", ETH_ALEN, data);
-        // Copy the PTK key to data, after the MAC address
-        memcpy(data , key->conf.key, key->conf.keylen);
-        printk(KERN_DEBUG "sta in key: %*ph", key->conf.keylen, data);
-
-        // Copy the MAC address to data
-        
-        memcpy(data + 16, interface_mac_addr, ETH_ALEN); // Use DA as the base MAC address
-        printk(KERN_DEBUG "sta in base mac: %pM", interface_mac_addr);
-        
-
-        
-
-        // Copy current_tp adjacent to the PTK key
-        memcpy(data + ETH_ALEN + key->conf.keylen, &current_tp, sizeof(current_tp));
-        printk(KERN_DEBUG "sta in current_tp %lld", current_tp);
-    } else {
-        printk(KERN_DEBUG "Rathan: key is null ");
-    }
-
-    // Compute the hash
-    crypto_shash_digest(shash_desc, data, total_size, hash);
-
-    // Adjust the first byte of the hash to make it a valid MAC address
-    hash[0] = (hash[0] & 0xFC) | 0x02;  // Set bit-0 to 0 and bit-1 to 1
-
-    // Copy the generated MAC address to r_mac
-    memcpy(r_mac, hash, ETH_ALEN);
-    printk(KERN_DEBUG "Rathan: sta rand mac %pM", r_mac);
-
-    // Clean up
-    kfree(shash_desc);
-    crypto_free_shash(shash);
-    kfree(data);
-} */
 
 
 
@@ -404,7 +328,7 @@ void generate_mac_add_ap_all(struct ieee80211_local *local, long long int curren
         }
 
         //sequence reset
-        sta->sdata->sequence_number = 16;
+        sta->sdata->sequence_number = 0;
         //printk(KERN_DEBUG "new address generated ");
 
         // Update the MAT table with the generated MAC address
@@ -422,7 +346,7 @@ void generate_mac_add_ap_all(struct ieee80211_local *local, long long int curren
 
 //this is the new function which generates new random mac address for the station and updates the mac pair table
 
-void generate_mac_add_sta(struct sk_buff *skb, struct sta_info *sta, long long int current_tp) {
+void generate_mac_add_sta(struct sta_info *sta, long long int current_tp) {
     struct crypto_shash *shash;
     struct shash_desc *shash_desc;
     struct ieee80211_key *key;
@@ -436,9 +360,9 @@ void generate_mac_add_sta(struct sk_buff *skb, struct sta_info *sta, long long i
 
 
 
-    info = IEEE80211_SKB_CB(skb);
-    sdata = vif_to_sdata(info->control.vif);
-    interface_mac_addr = sdata->vif.addr;
+    //info = IEEE80211_SKB_CB(skb);
+    //sdata = vif_to_sdata(info->control.vif);
+    interface_mac_addr = sta->sdata->vif.addr;
 
     data = kmalloc(total_size, GFP_KERNEL);
     if (!data) {
@@ -493,8 +417,8 @@ void generate_mac_add_sta(struct sk_buff *skb, struct sta_info *sta, long long i
     //printk(KERN_DEBUG "Rathan: sta rand mac %pM", r_mac);
 
     //sequence reset
-    //sta->sdata->sequence_number = 16;
-
+    sta->sdata->sequence_number = 0;
+    //print_current_pn(key);
     // Update the MAC pair table
     s_update_entry_by_base(interface_mac_addr, r_mac); // Insert the new entry
 

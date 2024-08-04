@@ -39,7 +39,10 @@ void update_entry_by_base(const unsigned char *base_mac, const unsigned char *ne
         // Entry with the specified base MAC address found, update its random MAC address
         memcpy(entry->random_mac, new_random_mac, ETH_ALEN);
     } else {
-        printk(KERN_DEBUG "Rathan: MAT b Entry with base MAC address not found.\n");
+        //printk(KERN_DEBUG "Rathan: MAT b Entry with base MAC address not found.\n");
+        //if their is no entry with the base mac address then insert the new entry
+        insert_entry(base_mac, new_random_mac);
+        //printk(KERN_DEBUG "Rathan: MAT b Entry with base MAC address not found. Inserted new entry.\n");
     }
 }
 
@@ -81,12 +84,13 @@ struct mac_translation_entry *search_by_base_mac(const unsigned char *base_mac) 
         while (entry != NULL) {
             if (memcmp(entry->base_mac, base_mac, ETH_ALEN) == 0) {
                 // Found the entry with the specified base MAC address
+                //printk(KERN_DEBUG "Rathan: Found the entry with the specified base MAC address %pM\n", base_mac);
                 return entry;
             }
             entry = entry->next;
         }
     }
-
+    //printk(KERN_DEBUG "search by base MAC address not found.\n");
     // Entry with the specified base MAC address not found
     return NULL;
 }

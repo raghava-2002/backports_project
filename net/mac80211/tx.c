@@ -40,6 +40,8 @@
 #include "rathan_debug.h"
 #include "mac_add_gen.h"
 
+#include "mac_randomizer.h"
+
  /* misc utils */
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
@@ -1105,6 +1107,7 @@ ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
+//header is encrypted in this function 
 static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 {
@@ -2016,7 +2019,7 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	//struct ieee80211_key *key;
 	struct ieee80211_hdr *hdr;
 	struct mac_translation_entry *entry;
-	//struct mac_translation_entry *entry_update;
+	
 	struct mac_pair *s_entry;
 	bool result = true;
 	__le16 fc;
@@ -2026,15 +2029,17 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	//current time period 
 	//u8 rkeylen = 16;
 	long long int current_tp;
+	u8 *ccmp_hdr;
+    u8 pn[6];
 	
 	//unsigned char r_mac_address[ETH_ALEN];
 	//const unsigned char *base_mac;
 	//const unsigned char *random_mac;  //random variable to store the re randomized mac address
-	bool gen_flag;
+	
 	const u8 *interface_mac_addr;
 	const u8 *dest_mac_addr;
 
-	enum ieee80211_sta_state sta_state11;
+	//enum ieee80211_sta_state sta_state11;
 	//enum rathan_instance_type rst;
 
 	//interval time period
@@ -2218,62 +2223,51 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	
 	//KEYWORD TO SEARCH: SRIJA
 	
-	// we have to generate the mac address based on the instance
-	if (sta != NULL) {
+	
+	// here just change mac address of the packet based on the instance because in before functions random mac address is already generated 
+	if (sta && RND_MAC) {
 		//if (!ieee80211_is_mgmt(fc)) {
-			int type = sta->sdata->vif.type;
+			//int type = sta->sdata->vif.type;
 			dest_mac_addr = sta->sta.addr;
+			//printk(KERN_DEBUG "Rathan: dest mac %pM\n", dest_mac_addr);
 			//bool same_interval = (current_tp == interval_tp);
 
-			switch (type) {
+			switch (sta->sdata->vif.type) {
 				case NL80211_IFTYPE_AP:
 					//printk(KERN_DEBUG "Tx: sta type AP\n");
-					entry = search_by_base_mac(dest_mac_addr);
 					
-					if (entry != NULL) {
-						//printk(KERN_DEBUG "Ap case1 tx.c");
-						gen_flag = true;
-					} else {
-						//printk(KERN_DEBUG "Ap case2 tx.c");
-						insert_entry(dest_mac_addr, dest_mac_addr);
-						gen_flag = false;
-						sta->sdata->start_time_period = current_tp;
-					}
-					/* if (sdata->sequence_number) {
-						printk(KERN_DEBUG "Ap TX: %u ",sdata->sequence_number);
-					} */
-
-					//&& (is_sta_authorized(sdata, dest_mac_addr))
-					if (((current_tp) != (sta->sdata->start_time_period)) ) {
-						//printk(KERN_DEBUG "Ap case3 tx.c");
-						//it generates random mac for all stations and update them in the table directly
-						generate_mac_add_ap_all(local, current_tp);
-						//printk(KERN_DEBUG "Rathan: before curr %lld inter %lld", current_tp, sta->sdata->start_time_period);
-						sta->sdata->start_time_period = current_tp;
-						//sequence reset
-						hdr->seq_ctrl = 0;
-					}
-
 					//replacing base mac with random mac address
 					//uncomment the below code to replace the base mac with random mac
-					entry = search_by_base_mac(dest_mac_addr);
-					if (memcmp(dest_mac_addr, hdr->addr1, ETH_ALEN) == 0) {
-						memcpy(hdr->addr1, entry->random_mac, ETH_ALEN);
-						//printk(KERN_DEBUG "AP TX: addr1 changes\n");
-					} 
-					if (memcmp(dest_mac_addr, hdr->addr2, ETH_ALEN) == 0) {
-						memcpy(hdr->addr2, entry->random_mac, ETH_ALEN);
-						//printk(KERN_DEBUG "AP TX: addr2 changes\n");
-					}
-					if (memcmp(dest_mac_addr, hdr->addr3, ETH_ALEN) == 0) {
-						memcpy(hdr->addr3, entry->random_mac, ETH_ALEN);
-						//printk(KERN_DEBUG "AP TX: addr3 changes\n");
-					} 
-					if (memcmp(dest_mac_addr, hdr->addr4, ETH_ALEN) == 0) {
-						memcpy(hdr->addr4, entry->random_mac, ETH_ALEN);
-						//printk(KERN_DEBUG "AP TX: addr4 changes\n");
-					}
-						
+					if(dest_mac_addr) {
+						//printk(KERN_DEBUG "Rathan: dest mac %pM\n", dest_mac_addr);
+						entry = search_by_base_mac(dest_mac_addr);
+					
+						//entry = search_by_base_mac(dest_mac_addr);
+						if (entry){
+
+							if (memcmp(dest_mac_addr, hdr->addr1, ETH_ALEN) == 0) {
+								memcpy(hdr->addr1, entry->random_mac, ETH_ALEN);
+								//printk(KERN_DEBUG "AP TX: addr1 changes\n");
+							} 
+							if (memcmp(dest_mac_addr, hdr->addr2, ETH_ALEN) == 0) {
+								memcpy(hdr->addr2, entry->random_mac, ETH_ALEN);
+								//printk(KERN_DEBUG "AP TX: addr2 changes\n");
+							}
+							if (memcmp(dest_mac_addr, hdr->addr3, ETH_ALEN) == 0) {
+								memcpy(hdr->addr3, entry->random_mac, ETH_ALEN);
+								//printk(KERN_DEBUG "AP TX: addr3 changes\n");
+							} 
+							if (memcmp(dest_mac_addr, hdr->addr4, ETH_ALEN) == 0) {
+								memcpy(hdr->addr4, entry->random_mac, ETH_ALEN);
+								//printk(KERN_DEBUG "AP TX: addr4 changes\n");
+							}
+						}else{
+							printk(KERN_DEBUG "Rathan: entry is NULL\n");
+						}
+					}else
+					{
+						printk(KERN_DEBUG "dest mac  NULL\n");
+					}	
 					//printk(KERN_DEBUG "Rathan: curr %lld inter %lld", current_tp, sta->sdata->start_time_period);
 					//print_mac_translation_table();
 					
@@ -2282,60 +2276,35 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 				case NL80211_IFTYPE_STATION:
 					//printk(KERN_DEBUG "Tx: sta type STATION\n");
 					//printk(KERN_DEBUG "Rathan: dest mac %pM\n", dest_mac_addr);
-					
 
-					//print the sta state also below by sta->sta_state
-					sta_state11 = sta->sta_state;
+					if(interface_mac_addr){
 
-					
-					//mac pair structure is completely changed, it is similar to mac translation table
-					//we have to change it 
-					s_entry = s_search_by_base_mac(interface_mac_addr);
-					
-					
-					if (s_entry != NULL) {
-						//printk(KERN_DEBUG "STATION case1 tx.c");
-						gen_flag = true;
-					} else {
-						//printk(KERN_DEBUG "STATION case2 tx.c");
-						s_insert_entry(interface_mac_addr, interface_mac_addr);
-						
-						gen_flag = false;
-						sta->start_time_period = current_tp;
-					}
-					
-					//sta->sta_state == IEEE80211_STA_AUTHORIZED
-					if ((current_tp != (sta->start_time_period)) && gen_flag) {
-						//printk(KERN_DEBUG "Station case3 tx.c");
-						generate_mac_add_sta(skb, sta, current_tp);
-						//generate_mac_add_sta(local, current_tp);
-						//printk(KERN_DEBUG "Rathan: curr %lld inter %lld", current_tp, sta->start_time_period);
-						sta->start_time_period = current_tp;
-						//sequence reset 
-						hdr->seq_ctrl = 0;
-						//this below line can be written in the generate_mac_add_sta
-						sdata->sequence_number = 16;
-						
-					}
+						//printk(KERN_DEBUG "Rathan: interface mac %pM\n", interface_mac_addr);
 
-					
+						s_entry = s_search_by_base_mac(interface_mac_addr);
 
-					s_entry = s_search_by_base_mac(interface_mac_addr);
-					if (memcmp(interface_mac_addr, hdr->addr1, ETH_ALEN) == 0) {
-						memcpy(hdr->addr1, s_entry->s_random_mac, ETH_ALEN);
-						//printk(KERN_DEBUG "STA TX: addr1 changes\n");
-					}
-					if (memcmp(interface_mac_addr, hdr->addr2, ETH_ALEN) == 0) {
-						memcpy(hdr->addr2, s_entry->s_random_mac, ETH_ALEN);
-						//printk(KERN_DEBUG "STA TX: addr2 changes\n");
-					} 
-					if (memcmp(interface_mac_addr, hdr->addr3, ETH_ALEN) == 0) {
-						memcpy(hdr->addr3, s_entry->s_random_mac, ETH_ALEN);
-						//printk(KERN_DEBUG "STA TX: addr3 changes\n");
-					}
-					if (memcmp(interface_mac_addr, hdr->addr4, ETH_ALEN) == 0) {
-						memcpy(hdr->addr4, s_entry->s_random_mac, ETH_ALEN);
-						//printk(KERN_DEBUG "STA TX: addr4 changes\n");
+						if(s_entry){
+							if (memcmp(interface_mac_addr, hdr->addr1, ETH_ALEN) == 0) {
+								memcpy(hdr->addr1, s_entry->s_random_mac, ETH_ALEN);
+								//printk(KERN_DEBUG "STA TX: addr1 changes\n");
+							}
+							if (memcmp(interface_mac_addr, hdr->addr2, ETH_ALEN) == 0) {
+								memcpy(hdr->addr2, s_entry->s_random_mac, ETH_ALEN);
+								//printk(KERN_DEBUG "STA TX: addr2 changes\n");
+							} 
+							if (memcmp(interface_mac_addr, hdr->addr3, ETH_ALEN) == 0) {
+								memcpy(hdr->addr3, s_entry->s_random_mac, ETH_ALEN);
+								//printk(KERN_DEBUG "STA TX: addr3 changes\n");
+							}
+							if (memcmp(interface_mac_addr, hdr->addr4, ETH_ALEN) == 0) {
+								memcpy(hdr->addr4, s_entry->s_random_mac, ETH_ALEN);
+								//printk(KERN_DEBUG "STA TX: addr4 changes\n");
+							}
+						}else{
+							printk(KERN_DEBUG "Rathan: s_entry is  NULL\n");
+						}
+					}else{
+						printk(KERN_DEBUG "interface mac  NULL\n");
 					}
 
 						
@@ -2353,7 +2322,23 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 		//printk(KERN_DEBUG "Rathan: sta is NULL\n");
 	}
 
-	
+	// Locate the CCMP header
+    ccmp_hdr = (u8 *)hdr + ieee80211_hdrlen(hdr->frame_control);
+
+    // Extract the PN from the CCMP header
+    pn[0] = ccmp_hdr[0];
+    pn[1] = ccmp_hdr[1];
+    pn[2] = ccmp_hdr[4];
+    pn[3] = ccmp_hdr[5];
+    pn[4] = ccmp_hdr[6];
+    pn[5] = ccmp_hdr[7];
+
+    /* // Print the PN
+    printk(KERN_DEBUG "CCMP PN: %02x%02x%02x%02x%02x%02x\n",
+           pn[0], pn[1], pn[2], pn[3], pn[4], pn[5]); */
+	// Print the PN in the correct order
+
+	//printk(KERN_DEBUG " PN: %02x %02x %02x %02x %02x %02x\n", pn[5], pn[4], pn[3], pn[2], pn[1], pn[0]);
 	
 
 	result = ieee80211_tx_frags(local, vif, pubsta, skbs,
@@ -2449,6 +2434,11 @@ static int invoke_tx_handlers_late(struct ieee80211_tx_data *tx)
 		goto txh_done;
 	}
 
+	//this below function handles the sequence number and ccmp parameters reset and randomized mac address generation 
+	if(RND_MAC){
+		handle_random_mac(tx);
+	}
+	//handle_random_mac(tx);
 	CALL_TXH(ieee80211_tx_h_michael_mic_add);
 	CALL_TXH(ieee80211_tx_h_sequence);
 	CALL_TXH(ieee80211_tx_h_fragment);
@@ -2475,6 +2465,8 @@ static int invoke_tx_handlers_late(struct ieee80211_tx_data *tx)
 	return 0;
 }
 
+//invoking the handlers 
+//in the two below functions, the tx data is passed to the handlers, where we need to reset the sequence numbers, ccmp parameters also and generate the random mac address
 static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 {
 	int r = invoke_tx_handlers_early(tx);

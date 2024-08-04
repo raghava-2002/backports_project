@@ -24,6 +24,7 @@
 #include "mesh.h"
 #include "wme.h"
 #include "rathan_debug.h"
+#include "mac_randomizer.h"
 
 static void ieee80211_set_mu_mimo_follow(struct ieee80211_sub_if_data *sdata,
 					 struct vif_params *params)

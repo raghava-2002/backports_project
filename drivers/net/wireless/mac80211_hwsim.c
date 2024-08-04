@@ -3465,6 +3465,7 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 	//rathan Acknowlegement work should be done here 
 	//KEYWORD TO SEARCH: SRIJA
 	// import the table here and send the ack
+	printk(KERN_DEBUG "Rathan: Acknowledgement work should be done here\n");
 
 	if (!(hwsim_flags & HWSIM_TX_CTL_NO_ACK) &&
 	   (hwsim_flags & HWSIM_TX_STAT_ACK)) {
