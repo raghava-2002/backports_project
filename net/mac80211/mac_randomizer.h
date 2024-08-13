@@ -29,8 +29,8 @@
 #include "rate.h"
 
 //rathan header files
-#include "mac_translation_table.h"
-#include "mac_pair_station.h"
+#include "rathan_tables/mac_translation_table.h"
+#include "rathan_tables/mac_pair_station.h"
 #include "rathan_debug.h"
 #include "mac_add_gen.h"
 
@@ -40,5 +40,6 @@ extern bool RND_MAC;    //  random MAC address generation logic bool edit this i
 #define RND_TP 15
 
 void handle_random_mac(struct ieee80211_tx_data *tx);
+void mac_addr_change_hdr_tx(struct sk_buff_head *skbs, struct ieee80211_vif *vif);
 
 #endif // MAC_RANDOMIZER_H

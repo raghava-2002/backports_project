@@ -35,8 +35,8 @@
 #include "wpa.h"
 #include "wme.h"
 #include "rate.h"
-#include "mac_translation_table.h"
-#include "mac_pair_station.h"
+#include "rathan_tables/mac_translation_table.h"
+#include "rathan_tables/mac_pair_station.h"
 #include "rathan_debug.h"
 #include "mac_add_gen.h"
 
@@ -1885,6 +1885,8 @@ static bool ieee80211_queue_skb(struct ieee80211_local *local,
 	return true;
 }
 
+
+//lets try to change mac address of packets here to check for the multicast packets 
 static bool ieee80211_tx_frags(struct ieee80211_local *local,
 			       struct ieee80211_vif *vif,
 			       struct ieee80211_sta *sta,
@@ -1896,47 +1898,29 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 	unsigned long flags;
 
 	/* if(!vif) {
-		printk(KERN_DEBUG "Rathan: vif is NULL\n");
+		printk(KERN_DEBUG "Rathan: vif is NULL\n");	
 	}else{
-		printk(KERN_DEBUG "Rathan: vif is not NULL\n");
+		
+		if (vif->type == NL80211_IFTYPE_AP_VLAN) {
+			printk(KERN_DEBUG "Rathan: AP_VLAN\n");
+		}else if (vif->type == NL80211_IFTYPE_AP) {
+			printk(KERN_DEBUG "Rathan: AP\n");
+		}else if (vif->type == NL80211_IFTYPE_STATION) {
+			printk(KERN_DEBUG "Rathan: STATION\n");
+		}
+
+		if (local->hw.wiphy) {
+			if (local->hw.wiphy->perm_addr) {
+				printk(KERN_DEBUG "perm addr %pM", local->hw.wiphy->perm_addr);
+			}
+		}
 	} */
-/* 	if(!skb){
-		printk(KERN_DEBUG "Rathan: skb is NULL\n");
-	}else{
-		printk(KERN_DEBUG "Rathan: skb is not NULL\n");
-	} */
-	/* if(!local){
-		printk(KERN_DEBUG "Rathan: local is NULL\n");
-	}else{
-		printk(KERN_DEBUG "Rathan: local is not NULL\n");
-	} */
-	//LOG_FUNC;
+
 	skb_queue_walk_safe(skbs, skb, tmp) {
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 		int q = info->hw_queue;
 
-	/* if(!info){
-		printk(KERN_DEBUG "Rathan: info is NULL\n");
-	}else{
-		printk(KERN_DEBUG "Rathan: info is not NULL\n");
-	}
-	printk(KERN_DEBUG "Rathan: hw queue %d\n", q);
-    */
 	
-    /* if (info->control.hw_key != NULL) {
-    	// Printing information about the hardware key
-        printk(KERN_DEBUG "Rathan: key is %d ", info->control.hw_key->keylen);
-    } else {
-        printk(KERN_DEBUG "Rathan: No hardware key associated.");
-    } */
-
-    //printk(KERN_DEBUG "Rathan: key is %*ph ", info->control.hw_key->keylen, info->control.hw_key->key);
-
-	/* if (!sta){
-		printk(KERN_DEBUG "Rathan: sta is NULL\n");
-	}else{
-		printk(KERN_DEBUG "Rathan: sta is not NULL\n");
-	} */ 
 #ifdef CPTCFG_MAC80211_VERBOSE_DEBUG
 		if (WARN_ON_ONCE(q >= local->hw.queues)) {
 			__skb_unlink(skb, skbs);
@@ -1988,6 +1972,12 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 
 		info->control.vif = vif;
 		control.sta = sta;
+		//change the base mac address with the random mac address in the header of the packet
+		//tables are updated in the previous functions at invoke_tx_handlers_late function
+		if(RND_MAC){
+			mac_addr_change_hdr_tx (skbs, vif);
+		}
+		
 
 		__skb_unlink(skb, skbs);
 		drv_tx(local, &control, skb); // responsible for transmitting the packet for transmission of the packet
@@ -2018,57 +2008,8 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	struct sk_buff *skb;
 	//struct ieee80211_key *key;
 	struct ieee80211_hdr *hdr;
-	struct mac_translation_entry *entry;
-	
-	struct mac_pair *s_entry;
 	bool result = true;
 	__le16 fc;
-	
-	//use this enum to simply identify the instance type
-	//enum rathan_instance_type instance_type;
-	//current time period 
-	//u8 rkeylen = 16;
-	long long int current_tp;
-	u8 *ccmp_hdr;
-    u8 pn[6];
-	
-	//unsigned char r_mac_address[ETH_ALEN];
-	//const unsigned char *base_mac;
-	//const unsigned char *random_mac;  //random variable to store the re randomized mac address
-	
-	const u8 *interface_mac_addr;
-	const u8 *dest_mac_addr;
-
-	//enum ieee80211_sta_state sta_state11;
-	//enum rathan_instance_type rst;
-
-	//interval time period
-	current_tp = (ktime_get_real_seconds()/RND_TP);
-	
-
-	//define some mac address 01:23:45:67:89:ab
-	
-	/* u8 raddr1[ETH_ALEN];
-	u8 raddr2[ETH_ALEN];
-	u8 raddr3[ETH_ALEN];
-	u8 raddr4[ETH_ALEN]; */
-
-	//used these to debug intial time period
-	/* if (sta != NULL){
-
-		if(sta->sdata->vif.type == NL80211_IFTYPE_AP){
-			printk(KERN_DEBUG "Rathan: sta type AP\n");
-			printk(KERN_DEBUG "Ap start time period: %lld\n", sta->sdata->start_time_period);
-		}else if(sta->sdata->vif.type == NL80211_IFTYPE_STATION){
-			printk(KERN_DEBUG "Rathan: sta type STA\n");
-			printk(KERN_DEBUG "Station start time period: %lld\n", sta->start_time_period);
-		}	
-		
-	} */
-	
-
-	
-	
 	
 
 	//LOG_FUNC;
@@ -2119,226 +2060,14 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	}
 
 
-	interface_mac_addr = sdata->vif.addr;
 
-
-
-	//these codes are used to debug the PTK keys of AP (w.r.t station) and STA
-	/* if (sta != NULL){
-		dest_mac_addr = sta->sta.addr;
-		if (sta->sdata->vif.type == NL80211_IFTYPE_AP){
-			packet_sent_from_ap = true;
-			
-			//printk(KERN_DEBUG "inter %pM dest %pM\n", interface_mac_addr, dest_mac_addr);
-			rcu_read_lock();
-			list_for_each_entry(sta, &local->sta_list, list) {
-            if (memcmp(sta->sta.addr, dest_mac_addr, ETH_ALEN) == 0) {
-                // Station found, retrieve the PTK
-				key = rcu_dereference(sta->ptk[sta->ptk_idx]);
-                if (key) {
-                    printk(KERN_DEBUG "inter %pM dest %pM\n", interface_mac_addr, dest_mac_addr);
-					printk(KERN_DEBUG "PTK for station %*ph\n", key->conf.keylen, key->conf.key);
-                } else {
-                    printk(KERN_DEBUG "No PTK for station ");
-                }
-                break;
-            }
-			rcu_read_unlock();
-			//printk(KERN_DEBUG "Rathan: 2 ptk key %*ph", key->conf.keylen, key->conf.key);
-			//test_func(local, skb, sta, 1, current_tp);
-			}
-			//printk(KERN_DEBUG "Rathan: 3 ptk key %*ph", key->conf.keylen, key->conf.key);
-		}else if (sta->sdata->vif.type == NL80211_IFTYPE_STATION){
-			packet_sent_from_sta = true;
-			
-			printk(KERN_DEBUG "inter %pM dest %pM\n", interface_mac_addr, dest_mac_addr);
-			if (sta && (key = rcu_dereference(sta->ptk[sta->ptk_idx]))) {
-			
-				printk(KERN_DEBUG "Rathan: ptk key %*ph", key->conf.keylen, key->conf.key);
-				
-			}else{
-				printk(KERN_DEBUG "Rathan: No PTK for station ");
-			}
-
-		}
-	} */
-	
-
-
-	
-	
-	
-	//this way we can check the station is authorized or not
-	/* if (sta != NULL){
-		if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
-			// The station is key negotiated with the AP
-			printk(KERN_DEBUG "Rathan: key negotiated with the AP\n");
-			printk(KERN_DEBUG " packet sent");
-			printk(KERN_DEBUG " addr1 %pM\n", hdr->addr1);
-			printk(KERN_DEBUG " addr2 %pM\n", hdr->addr2);
-			printk(KERN_DEBUG " addr3 %pM\n", hdr->addr3);
-			printk(KERN_DEBUG " addr4 %pM\n", hdr->addr4);
-		}
-	} */
-
-	//to check wheather we are on same or different instance 
-/* 	if (local){
-		instance_type = which_instance(local);
-	}
-
-	switch (instance_type) {
-        case rathan_INSTANCE_STA:
-            printk(KERN_INFO "The instance is a STA (Station)\n");
-            break;
-        case rathan_INSTANCE_AP:
-            printk(KERN_INFO "The instance is an AP (Access Point)\n");
-            break;
-        case rathan_INSTANCE_UNKNOWN:
-        default:
-            printk(KERN_INFO "The instance type is UNKNOWN\n");
-            break;
-    } */
-
-	//print_packet_header(skb);
-
-
-	/* if (sta){
-		if (ieee80211_is_data(fc)) {
-			print_packet_header(skb);
-		}
-	} */
-
-	
-	
-	
-	// but we need to change the code to generate the mac address function based on the instance
-
-	
-	
-	//
-
-	//rst = which_instance(local);
-	//use the below line to print the header of the packet
-	//print_packet_header(skb);
-	
 	//KEYWORD TO SEARCH: SRIJA
 	
 	
 	// here just change mac address of the packet based on the instance because in before functions random mac address is already generated 
-	if (sta && RND_MAC) {
-		//if (!ieee80211_is_mgmt(fc)) {
-			//int type = sta->sdata->vif.type;
-			dest_mac_addr = sta->sta.addr;
-			//printk(KERN_DEBUG "Rathan: dest mac %pM\n", dest_mac_addr);
-			//bool same_interval = (current_tp == interval_tp);
+	// mac address change in the header of the packet changed to other functions (i mean next functions called) ieee80211_tx_frags
 
-			switch (sta->sdata->vif.type) {
-				case NL80211_IFTYPE_AP:
-					//printk(KERN_DEBUG "Tx: sta type AP\n");
-					
-					//replacing base mac with random mac address
-					//uncomment the below code to replace the base mac with random mac
-					if(dest_mac_addr) {
-						//printk(KERN_DEBUG "Rathan: dest mac %pM\n", dest_mac_addr);
-						entry = search_by_base_mac(dest_mac_addr);
-					
-						//entry = search_by_base_mac(dest_mac_addr);
-						if (entry){
-
-							if (memcmp(dest_mac_addr, hdr->addr1, ETH_ALEN) == 0) {
-								memcpy(hdr->addr1, entry->random_mac, ETH_ALEN);
-								//printk(KERN_DEBUG "AP TX: addr1 changes\n");
-							} 
-							if (memcmp(dest_mac_addr, hdr->addr2, ETH_ALEN) == 0) {
-								memcpy(hdr->addr2, entry->random_mac, ETH_ALEN);
-								//printk(KERN_DEBUG "AP TX: addr2 changes\n");
-							}
-							if (memcmp(dest_mac_addr, hdr->addr3, ETH_ALEN) == 0) {
-								memcpy(hdr->addr3, entry->random_mac, ETH_ALEN);
-								//printk(KERN_DEBUG "AP TX: addr3 changes\n");
-							} 
-							if (memcmp(dest_mac_addr, hdr->addr4, ETH_ALEN) == 0) {
-								memcpy(hdr->addr4, entry->random_mac, ETH_ALEN);
-								//printk(KERN_DEBUG "AP TX: addr4 changes\n");
-							}
-						}else{
-							printk(KERN_DEBUG "Rathan: entry is NULL\n");
-						}
-					}else
-					{
-						printk(KERN_DEBUG "dest mac  NULL\n");
-					}	
-					//printk(KERN_DEBUG "Rathan: curr %lld inter %lld", current_tp, sta->sdata->start_time_period);
-					//print_mac_translation_table();
-					
-					break;
-
-				case NL80211_IFTYPE_STATION:
-					//printk(KERN_DEBUG "Tx: sta type STATION\n");
-					//printk(KERN_DEBUG "Rathan: dest mac %pM\n", dest_mac_addr);
-
-					if(interface_mac_addr){
-
-						//printk(KERN_DEBUG "Rathan: interface mac %pM\n", interface_mac_addr);
-
-						s_entry = s_search_by_base_mac(interface_mac_addr);
-
-						if(s_entry){
-							if (memcmp(interface_mac_addr, hdr->addr1, ETH_ALEN) == 0) {
-								memcpy(hdr->addr1, s_entry->s_random_mac, ETH_ALEN);
-								//printk(KERN_DEBUG "STA TX: addr1 changes\n");
-							}
-							if (memcmp(interface_mac_addr, hdr->addr2, ETH_ALEN) == 0) {
-								memcpy(hdr->addr2, s_entry->s_random_mac, ETH_ALEN);
-								//printk(KERN_DEBUG "STA TX: addr2 changes\n");
-							} 
-							if (memcmp(interface_mac_addr, hdr->addr3, ETH_ALEN) == 0) {
-								memcpy(hdr->addr3, s_entry->s_random_mac, ETH_ALEN);
-								//printk(KERN_DEBUG "STA TX: addr3 changes\n");
-							}
-							if (memcmp(interface_mac_addr, hdr->addr4, ETH_ALEN) == 0) {
-								memcpy(hdr->addr4, s_entry->s_random_mac, ETH_ALEN);
-								//printk(KERN_DEBUG "STA TX: addr4 changes\n");
-							}
-						}else{
-							printk(KERN_DEBUG "Rathan: s_entry is  NULL\n");
-						}
-					}else{
-						printk(KERN_DEBUG "interface mac  NULL\n");
-					}
-
-						
-					//print_mac_translation_table();
-					//print_mac_pair_table();
-					
-					break;
-
-				default:
-					printk(KERN_DEBUG "Rathan: interface unknown \n");
-					break;
-			}
-		//}
-	} else {
-		//printk(KERN_DEBUG "Rathan: sta is NULL\n");
-	}
-
-	// Locate the CCMP header
-    ccmp_hdr = (u8 *)hdr + ieee80211_hdrlen(hdr->frame_control);
-
-    // Extract the PN from the CCMP header
-    pn[0] = ccmp_hdr[0];
-    pn[1] = ccmp_hdr[1];
-    pn[2] = ccmp_hdr[4];
-    pn[3] = ccmp_hdr[5];
-    pn[4] = ccmp_hdr[6];
-    pn[5] = ccmp_hdr[7];
-
-    /* // Print the PN
-    printk(KERN_DEBUG "CCMP PN: %02x%02x%02x%02x%02x%02x\n",
-           pn[0], pn[1], pn[2], pn[3], pn[4], pn[5]); */
-	// Print the PN in the correct order
-
-	//printk(KERN_DEBUG " PN: %02x %02x %02x %02x %02x %02x\n", pn[5], pn[4], pn[3], pn[2], pn[1], pn[0]);
+	
 	
 
 	result = ieee80211_tx_frags(local, vif, pubsta, skbs,
@@ -2373,6 +2102,9 @@ void test_fun(struct sta_info *sta, int flag_addr, long long current_tp)
 	} else {
 		printk(KERN_DEBUG "Rathan: no ptk key is null ");
 	}
+
+
+
 }
 /*
  * Invoke TX handlers, return 0 on success and non-zero if the
@@ -2396,6 +2128,11 @@ static int invoke_tx_handlers_early(struct ieee80211_tx_data *tx)
 
 	CALL_TXH(ieee80211_tx_h_dynamic_ps);
 	CALL_TXH(ieee80211_tx_h_check_assoc);
+	//this below functions handles the unicast and multicast packets seperatlly
+	/* if(RND_MAC){
+		handle_random_mac(tx);
+	} */
+	
 	CALL_TXH(ieee80211_tx_h_ps_buf);
 	CALL_TXH(ieee80211_tx_h_check_control_port_protocol);
 	CALL_TXH(ieee80211_tx_h_select_key);
@@ -2438,7 +2175,6 @@ static int invoke_tx_handlers_late(struct ieee80211_tx_data *tx)
 	if(RND_MAC){
 		handle_random_mac(tx);
 	}
-	//handle_random_mac(tx);
 	CALL_TXH(ieee80211_tx_h_michael_mic_add);
 	CALL_TXH(ieee80211_tx_h_sequence);
 	CALL_TXH(ieee80211_tx_h_fragment);

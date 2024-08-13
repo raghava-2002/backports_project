@@ -26,6 +26,17 @@ obj-$(CPTCFG_WLAN_VENDOR_QUANTENNA) += quantenna/
 
 obj-$(CPTCFG_USB_NET_RNDIS_WLAN)	+= rndis_wlan.o
 
+# Include path for custom headers
+ccflags-y += -I$(srctree)/include/rathan_tables
+
+
 obj-$(CPTCFG_MAC80211_HWSIM)	+= mac80211_hwsim.o
 #
 #obj-$(CPTCFG_VIRT_WIFI)	+= virt_wifi.o
+
+# Ensure mac80211_hwsim.o depends on mac_translation_table.o
+#mac80211_hwsim-objs := mac80211_hwsim.o
+
+
+
+#obj-y += ../../../net/mac80211/mac_translation_table.o

@@ -27,7 +27,8 @@
 #include "debugfs_sta.h"
 #include "mesh.h"
 #include "wme.h"
-#include "mac_pair_station.h"
+#include "rathan_tables/mac_pair_station.h"
+#include "rathan_tables/mac_translation_table.h"
 #include "rathan_debug.h"
 #include "mac_randomizer.h"
 
@@ -319,6 +320,17 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 	
 	printk(KERN_DEBUG "Station is created\n");
+	//make bool flag up to indicate that STA or that instance 
+	
+	if(sdata->vif.type == NL80211_IFTYPE_AP){
+		it_is_ap = true;
+		//it_is_sta = false;
+		printk(KERN_DEBUG "Ap is up sta is down");
+	}else if(sdata->vif.type == NL80211_IFTYPE_STATION){
+		//it_is_ap = false;
+		it_is_sta = true;
+		printk(KERN_DEBUG "Ap is down sta is up");
+	}
 	
 
 	// Allocate memory for MAC pair dynamically
@@ -1086,6 +1098,7 @@ static void __sta_info_destroy_part2(struct sta_info *sta)
 		WARN_ON_ONCE(ret != 0);
 	}
 
+	printk(KERN_DEBUG "TEST:Station is destroyed %pM\n", sta->sta.addr);
 	sta_dbg(sdata, "Removed STA %pM\n", sta->sta.addr);
 
 	sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);

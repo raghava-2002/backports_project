@@ -10,6 +10,8 @@ struct mac_translation_entry {
     struct mac_translation_entry *next;
 };
 
+extern struct mac_translation_entry *translation_table[]; // Declare the translation table as extern
+extern bool it_is_ap; // Declare the bool variable to check if it is a station or AP
 
 //defintions for the functions to use translation table 
 void insert_entry(const unsigned char *base_mac, const unsigned char *random_mac);

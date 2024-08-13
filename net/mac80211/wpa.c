@@ -200,6 +200,7 @@ mic_fail_no_key:
 	return RX_DROP_UNUSABLE;
 }
 
+//encrypt the skb using the TKIP encryption
 static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
@@ -240,6 +241,7 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 
 	/* Increase IV for the frame */
 	pn = atomic64_inc_return(&key->conf.tx_pn);
+	printk(KERN_DEBUG "Current PN/Nonce TKIP encryption: %llu\n", pn);
 	pos = ieee80211_tkip_add_iv(pos, &key->conf, pn);
 
 	/* hwaccel - with software IV */
@@ -502,6 +504,7 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb,
 	hdr = (struct ieee80211_hdr *) pos;
 	pos += hdrlen;
 
+	//we can neglect below 4 lines of code (just to debug some stuff)
 	//can be reseted the PN here before utilizing based on the time period it is present 
 	// Set PN to a unique value (e.g., 0x123456789ABC)
     rndpn64 = 0x123456789ABCULL;
@@ -519,6 +522,7 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb,
 	pn[0] = pn64 >> 40;
 
 
+	//rathan wrote these below commented lines just neglect it 
 	//i found these some where (debugfs_key.c) to set PN 
 	/* PN is a 48-bit counter */
 	/* 	if (pn >= (1ULL << 48))

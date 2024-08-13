@@ -1,12 +1,15 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 
-#include "mac_translation_table.h"
+#include "rathan_tables/mac_translation_table.h"
+
 
 #define TABLE_SIZE 100
+bool it_is_ap = false;
+EXPORT_SYMBOL(it_is_ap);
 
 struct mac_translation_entry *translation_table[TABLE_SIZE] = { NULL }; // Global translation hash table
-
+EXPORT_SYMBOL(translation_table);
 
 // Hash function that combines the bytes of a MAC address
 unsigned int hash_function(const unsigned char *mac) {
@@ -74,6 +77,7 @@ struct mac_translation_entry *search_by_random_mac(const unsigned char *random_m
     // Entry with the specified base MAC address not found
     return NULL;
 }
+EXPORT_SYMBOL(search_by_random_mac);
 
 // Function to search for a randomized MAC address with base MAC address returns the entry
 struct mac_translation_entry *search_by_base_mac(const unsigned char *base_mac) {
@@ -106,6 +110,7 @@ void print_mac_translation_table(void) {
         }
     }
 }
+EXPORT_SYMBOL(print_mac_translation_table);
 
 // Function to delete an entry from the hash table
 void delete_entry(const unsigned char *random_mac) {

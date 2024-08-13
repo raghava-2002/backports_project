@@ -13,6 +13,7 @@
         "kernel.h": "c",
         "type_traits": "c",
         "ieee80211_i.h": "c",
-        "mac_translation_table.h": "c"
+        "mac_translation_table.h": "c",
+        "skbuff.h": "c"
     }
 }

@@ -7,9 +7,9 @@
 #include "mac_randomizer.h"
 
 
-bool RND_MAC = false;
+//bool RND_MAC = false;
 
-//bool RND_MAC = true;    // Enable random MAC address generation logic 
+bool RND_MAC = true;    // Enable random MAC address generation logic 
 
 
 
@@ -102,18 +102,7 @@ void handle_random_mac(struct ieee80211_tx_data *tx) {
     //printk(KERN_DEBUG "debug 2");
 
 
-
-
-
-
-
-
-
-
-
-
-
-    if (RND_MAC && trigger_flag && (sta->sta_state == IEEE80211_STA_AUTHORIZED)) {
+    if (trigger_flag && (sta->sta_state == IEEE80211_STA_AUTHORIZED)) {
         // Generate random MAC address
         // Update table
         // Reset sequence number and CCMP parameter
@@ -215,4 +204,86 @@ void handle_random_mac(struct ieee80211_tx_data *tx) {
 }
 
 
+
+//change the base mac address of the header in the packet with randomized mac address
+
+
+void mac_addr_change_hdr_tx (struct sk_buff_head *skbs, struct ieee80211_vif *vif){
+
+    
+	struct ieee80211_hdr *hdr;
+	struct sk_buff *skb_rnd;
+	struct mac_translation_entry *entry;
+	struct mac_pair *s_entry;
+
+
+    skb_rnd = skb_peek(skbs);
+	hdr = (struct ieee80211_hdr *) skb_rnd->data;
+
+    if(RND_MAC){
+			switch (vif->type) {
+				case NL80211_IFTYPE_STATION:
+					//printk(KERN_INFO "The instance is a STA (Station)\n");
+
+					s_entry = s_search_by_base_mac(hdr->addr1);
+					if (s_entry) {
+						memcpy(hdr->addr1, s_entry->s_random_mac, ETH_ALEN);
+						//printk(KERN_DEBUG "STA RX: addr1 changed back");
+					}
+
+					s_entry = s_search_by_base_mac(hdr->addr2);
+					if (s_entry) {
+						memcpy(hdr->addr2, s_entry->s_random_mac, ETH_ALEN);
+						//printk(KERN_DEBUG "STA RX: addr2 changed back");
+					}
+
+					s_entry = s_search_by_base_mac(hdr->addr3);
+					if (s_entry) {
+						memcpy(hdr->addr3, s_entry->s_random_mac, ETH_ALEN);
+						//printk(KERN_DEBUG "STA RX: addr3 changed back");
+					}
+
+					
+					s_entry = s_search_by_base_mac(hdr->addr4);
+					if (s_entry) {
+						memcpy(hdr->addr4, s_entry->s_random_mac, ETH_ALEN);
+						//printk(KERN_DEBUG "STA RX: addr4 changed back");
+					}
+					break;
+				case NL80211_IFTYPE_AP:
+					//printk(KERN_INFO "The instance is an AP (Access Point)\n");
+					
+					entry = search_by_base_mac(hdr->addr1);
+					if (entry) {
+						memcpy(hdr->addr1, entry->random_mac, ETH_ALEN);
+						//printk(KERN_DEBUG "AP RX: addr1 changed back");
+					}
+
+					entry = search_by_base_mac(hdr->addr2);
+					if (entry) {
+						memcpy(hdr->addr2, entry->random_mac, ETH_ALEN);
+						//printk(KERN_DEBUG "AP RX: addr2 changed back");
+					}
+
+					entry = search_by_base_mac(hdr->addr3);
+					if (entry) {
+						memcpy(hdr->addr3, entry->random_mac, ETH_ALEN);
+						//printk(KERN_DEBUG "AP RX: addr3 changed back");
+					}
+
+					
+					entry = search_by_base_mac(hdr->addr4);
+					if (entry) {
+						memcpy(hdr->addr4, entry->random_mac, ETH_ALEN);
+						//printk(KERN_DEBUG "AP RX: addr4 changed back");
+					}
+					break;
+				default:
+					printk(KERN_INFO "The instance type is UNKNOWN\n");
+					break;
+		}
+
+	}
+
+}
 

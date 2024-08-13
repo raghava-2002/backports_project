@@ -2,12 +2,14 @@
 #include <linux/slab.h>
 
 
-#include "mac_pair_station.h"
+#include "rathan_tables/mac_pair_station.h"
 
 #define TABLE_SIZE 10
+bool it_is_sta = false;
+EXPORT_SYMBOL(it_is_sta);
 
 struct mac_pair *s_translation_table[TABLE_SIZE] = { NULL }; // Global translation hash table
-
+EXPORT_SYMBOL(s_translation_table);
 
 // Hash function that combines the bytes of a MAC address
 unsigned int s_hash_function(const unsigned char *mac) {
@@ -74,6 +76,7 @@ struct mac_pair *s_search_by_random_mac(const unsigned char *random_mac) {
     // Entry with the specified base MAC address not found
     return NULL;
 }
+EXPORT_SYMBOL(s_search_by_random_mac);
 
 // Function to search for a randomized MAC address with base MAC address returns the entry
 struct mac_pair *s_search_by_base_mac(const unsigned char *base_mac) {
@@ -106,6 +109,7 @@ void print_mac_pair_table(void) {
         }
     }
 }
+EXPORT_SYMBOL(print_mac_pair_table);
 
 // Function to delete an entry from the hash table
 void s_delete_entry(const unsigned char *random_mac) {

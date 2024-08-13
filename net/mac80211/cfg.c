@@ -25,6 +25,8 @@
 #include "wme.h"
 #include "rathan_debug.h"
 #include "mac_randomizer.h"
+#include "rathan_tables/mac_translation_table.h"
+#include "rathan_tables/mac_pair_station.h"
 
 static void ieee80211_set_mu_mimo_follow(struct ieee80211_sub_if_data *sdata,
 					 struct vif_params *params)
@@ -991,6 +993,10 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	old = sdata_dereference(sdata->u.ap.beacon, sdata);
 	
 	printk(KERN_DEBUG "Ap created\n");
+	//make bool flag up to indicate that AP or that instance 
+	it_is_ap = true;
+	//it_is_sta = false;
+	printk(KERN_DEBUG "Ap flag set, sta is down\n");
 	ktime_get_real_ts64(&ts);
     sdata->start_time_period = ts.tv_sec / RND_TP;
 	printk(KERN_DEBUG "start time period %lld", sdata->start_time_period);

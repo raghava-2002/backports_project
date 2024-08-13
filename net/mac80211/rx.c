@@ -31,8 +31,8 @@
 #include "tkip.h"
 #include "wme.h"
 #include "rate.h"
-#include "mac_translation_table.h"
-#include "mac_pair_station.h"
+#include "rathan_tables/mac_translation_table.h"
+#include "rathan_tables/mac_pair_station.h"
 #include "rathan_debug.h"
 #include "mac_add_gen.h"
 #include "mac_randomizer.h"
@@ -4682,6 +4682,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	enum rathan_instance_type instance_type;
 	long long int current_tp;
 	//const u8 *instance_mac = hw->wiphy->perm_addr;
+	u16 custom_frame_control;
 	
 
 	u16 type, subtype;
@@ -4770,6 +4771,8 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 					memcpy(hdr->addr4, s_entry->s_base_mac, ETH_ALEN);
 					//printk(KERN_DEBUG "STA RX: addr4 changed back");
 				}
+				//print_mac_pair_table();
+
 				break;
 			case rathan_INSTANCE_AP:
 				//printk(KERN_INFO "The instance is an AP (Access Point)\n");
@@ -4808,6 +4811,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 					memcpy(hdr->addr4, entry->base_mac, ETH_ALEN);
 					//printk(KERN_DEBUG "AP RX: addr4 changed back");
 				}
+				//print_mac_translation_table();
 				break;
 			case rathan_INSTANCE_UNKNOWN:
 			default:

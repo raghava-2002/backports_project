@@ -35,6 +35,10 @@
 #include <linux/nospec.h>
 #include "mac80211_hwsim.h"
 
+//rathan files here
+#include "rathan_tables/mac_translation_table.h"
+#include "rathan_tables/mac_pair_station.h"
+
 #define WARN_QUEUE 100
 #define MAX_QUEUE 200
 
@@ -1284,6 +1288,19 @@ static void mac80211_hwsim_add_vendor_rtap(struct sk_buff *skb)
 #endif
 }
 
+/* Rathan wrote this explanation
+The ack variable in the mac80211_hwsim_tx_frame_no_nl function is used to track whether an acknowledgment (ACK) needs to be sent for the transmitted frame. It is initially set to false and will be set to true if the destination address (hdr->addr1) matches the address of the radio interface (data2) that receives the frame.
+
+The purpose of tracking the ack is to determine whether the transmitted frame requires an acknowledgment from the receiving radio interface. If ack is true, it means that the frame needs to be acknowledged, and the function will return true. If ack is false, it means that the frame does not require an acknowledgment, and the function will return false.
+
+The acknowledgment mechanism is commonly used in wireless communication to ensure reliable transmission of data. When a frame is successfully received, the receiving device sends an acknowledgment frame back to the sender to confirm the successful reception.The ack variable in the mac80211_hwsim_tx_frame_no_nl function is used to track whether an acknowledgment (ACK) needs to be sent for the transmitted frame. It is initially set to false and will be set to true if the destination address (hdr->addr1) matches the address of the radio interface (data2) that receives the frame.
+
+The purpose of tracking the ack is to determine whether the transmitted frame requires an acknowledgment from the receiving radio interface. If ack is true, it means that the frame needs to be acknowledged, and the function will return true. If ack is false, it means that the frame does not require an acknowledgment, and the function will return false.
+
+The acknowledgment mechanism is commonly used in wireless communication to ensure reliable transmission of data. When a frame is successfully received, the receiving device sends an acknowledgment frame back to the sender to confirm the successful reception.
+*/
+
+
 static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 					  struct sk_buff *skb,
 					  struct ieee80211_channel *chan)
@@ -1293,6 +1310,8 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_rx_status rx_status;
+	//struct mac_translation_entry *entry;
+	struct mac_pair *pair;
 	u64 now;
 
 	//LOG_FUNC;
@@ -1406,6 +1425,8 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 				continue;
 		}
 
+		//rathan wrote this commented lines 
+		//make this ack as true for an ack to be sent
 		if (mac80211_hwsim_addr_match(data2, hdr->addr1))
 			ack = true;
 
@@ -1418,6 +1439,29 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 		data2->rx_pkts++;
 		data2->rx_bytes += nskb->len;
 		ieee80211_rx_irqsafe(data2->hw, nskb);
+
+
+		
+		
+
+		//print_mac_translation_table();
+		//print_mac_pair_table();
+		pair = s_search_by_random_mac(hdr->addr1);
+		if(pair != NULL){
+			//printk(KERN_DEBUG "entry: addr1 %pM, base_mac %pM, random_mac %pM\n", hdr->addr1, entry->base_mac, entry->random_mac);
+			ack = true;
+		}
+		else{
+			//printk(KERN_DEBUG "no entry: addr1 %pM, addr2 %pM, addr3 %pM\n", hdr->addr1, hdr->addr2, hdr->addr3);
+		}
+
+		//some debugging 
+		//printk(KERN_DEBUG " ap = %s, RA %pM, sta = %s\n", it_is_ap ? "true" : "false", hdr->addr1, it_is_sta ? "true" : "false");
+		//print_mac_pair_table();
+		
+
+
+
 	}
 	spin_unlock(&hwsim_radio_lock);
 
@@ -3465,7 +3509,7 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 	//rathan Acknowlegement work should be done here 
 	//KEYWORD TO SEARCH: SRIJA
 	// import the table here and send the ack
-	printk(KERN_DEBUG "Rathan: Acknowledgement work should be done here\n");
+	printk(KERN_DEBUG "Rathan nl: Acknowledgement work should be done here\n");
 
 	if (!(hwsim_flags & HWSIM_TX_CTL_NO_ACK) &&
 	   (hwsim_flags & HWSIM_TX_STAT_ACK)) {
