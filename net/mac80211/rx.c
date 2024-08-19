@@ -4701,6 +4701,17 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	type = (fc & IEEE80211_FCTL_FTYPE) >> 2;
     subtype = (fc & IEEE80211_FCTL_STYPE) >> 4;
 
+	//check the custom packet received here print debug statement and drop the packet 
+    if (ieee80211_is_mgmt(fc) && subtype == 0xF) {
+        printk(KERN_DEBUG "Custom management frame received on %pM ", hw->wiphy->perm_addr );
+        
+        print_packet_header(skb);
+        printk(KERN_DEBUG "Dropping the custom packet.\n");
+
+        // Drop the packet by freeing the SKB
+        dev_kfree_skb(skb);
+        return;
+    }
 
 	if (ieee80211_is_data(fc) || ieee80211_is_mgmt(fc))
 		I802_DEBUG_INC(local->dot11ReceivedFragmentCount);
