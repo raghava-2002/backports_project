@@ -287,3 +287,146 @@ void mac_addr_change_hdr_tx (struct sk_buff_head *skbs, struct ieee80211_vif *vi
 
 }
 
+
+
+void mac_addr_change_hdr_rx (struct ieee80211_local *local, struct ieee80211_hdr *hdr){
+
+    enum rathan_instance_type instance_type;
+    struct mac_pair *s_entry;
+	struct mac_translation_entry *entry;
+    struct ieee80211_sub_if_data *sdata_instance;
+    long long int current_tp;
+
+    current_tp = (ktime_get_real_seconds()/RND_TP);
+    
+
+
+    if (local){
+		instance_type = which_instance(local);
+	}
+
+    if(RND_MAC){
+		switch (instance_type) {
+			case rathan_INSTANCE_STA:
+				//printk(KERN_INFO "The instance is a STA (Station)\n");
+				//printk(KERN_DEBUG "Instance mac: %pM\n", instance_mac);
+				
+				
+				//printk(KERN_DEBUG "sta RX skb: seq number %u\n", le16_to_cpu(hdr->seq_ctrl) >> 4);
+
+				s_entry = s_search_by_random_mac(hdr->addr1);
+				if (s_entry) {
+					memcpy(hdr->addr1, s_entry->s_base_mac, ETH_ALEN);
+					//printk(KERN_DEBUG "STA RX: addr1 changed back");
+				}
+
+				s_entry = s_search_by_random_mac(hdr->addr2);
+				if (s_entry) {
+					memcpy(hdr->addr2, s_entry->s_base_mac, ETH_ALEN);
+					//printk(KERN_DEBUG "STA RX: addr2 changed back");
+				}
+
+				s_entry = s_search_by_random_mac(hdr->addr3);
+				if (s_entry) {
+					memcpy(hdr->addr3, s_entry->s_base_mac, ETH_ALEN);
+					//printk(KERN_DEBUG "STA RX: addr3 changed back");
+				}
+
+				
+				s_entry = s_search_by_random_mac(hdr->addr4);
+				if (s_entry) {
+					memcpy(hdr->addr4, s_entry->s_base_mac, ETH_ALEN);
+					//printk(KERN_DEBUG "STA RX: addr4 changed back");
+				}
+				//print_mac_pair_table();
+
+				break;
+			case rathan_INSTANCE_AP:
+				//printk(KERN_INFO "The instance is an AP (Access Point)\n");
+				//printk(KERN_DEBUG "Interface: %pM\n", instance_mac);
+				sdata_instance = get_ap_sdata(local);
+				if (sdata_instance) {
+					//printk(KERN_DEBUG "AP RX current %lld instance: %lld\n", current_tp, sdata_instance->start_time_period);
+					if (current_tp != sdata_instance->start_time_period ) {
+						//printk(KERN_DEBUG " AP RX: New Time Period\n");
+						generate_mac_add_ap_all(local, current_tp);
+						sdata_instance->start_time_period = current_tp;
+						
+					}
+				}
+				entry = search_by_random_mac(hdr->addr1);
+				if (entry) {
+					memcpy(hdr->addr1, entry->base_mac, ETH_ALEN);
+					//printk(KERN_DEBUG "AP RX: addr1 changed back");
+				}
+
+				entry = search_by_random_mac(hdr->addr2);
+				if (entry) {
+					memcpy(hdr->addr2, entry->base_mac, ETH_ALEN);
+					//printk(KERN_DEBUG "AP RX: addr2 changed back");
+				}
+
+				entry = search_by_random_mac(hdr->addr3);
+				if (entry) {
+					memcpy(hdr->addr3, entry->base_mac, ETH_ALEN);
+					//printk(KERN_DEBUG "AP RX: addr3 changed back");
+				}
+
+				
+				entry = search_by_random_mac(hdr->addr4);
+				if (entry) {
+					memcpy(hdr->addr4, entry->base_mac, ETH_ALEN);
+					//printk(KERN_DEBUG "AP RX: addr4 changed back");
+				}
+				//print_mac_translation_table();
+				break;
+			case rathan_INSTANCE_UNKNOWN:
+			default:
+				printk(KERN_INFO "The instance type is UNKNOWN\n");
+				break;
+		}
+
+	}
+
+}
+
+
+//custom packet building function
+
+struct sk_buff *construct_custom_packet(struct ieee80211_vif *vif){
+
+    struct sk_buff *custom_skb;
+    struct ieee80211_hdr *hdr;
+    int hdr_len = sizeof(struct ieee80211_hdr);
+    int payload_len = 100;
+    int total_len = hdr_len + payload_len;
+    u8 *payload;
+
+    //Allocate a new skb for the custom packet 
+    custom_skb = dev_alloc_skb(total_len);
+    if (!custom_skb) {
+        printk(KERN_DEBUG "Failed to allocate a new skb\n");
+        return NULL;
+    }
+
+    //Reserve space for the header
+    skb_reserve(custom_skb, hdr_len);
+
+    //Add the payload
+    payload = skb_put(custom_skb, payload_len);
+    memset(payload, 0xab, payload_len);
+
+    //Fill in the header
+    hdr = (struct ieee80211_hdr *)skb_push(custom_skb, hdr_len);
+
+    //set the frame control field of the header and subtype 
+    hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT | 0x00F0); // Invalid subtype for Management frame
+
+    // Assuming hdr and vif are already defined and initialized
+	memset(hdr->addr1, 0xFF, ETH_ALEN);  // Destination address (broadcast)
+    memcpy(hdr->addr2, vif->addr, ETH_ALEN);           // Source address (AP address)
+    memcpy(hdr->addr3, vif->addr, ETH_ALEN);           // BSSID (AP address)
+
+    return custom_skb;
+
+}

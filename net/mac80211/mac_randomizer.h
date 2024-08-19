@@ -41,5 +41,7 @@ extern bool RND_MAC;    //  random MAC address generation logic bool edit this i
 
 void handle_random_mac(struct ieee80211_tx_data *tx);
 void mac_addr_change_hdr_tx(struct sk_buff_head *skbs, struct ieee80211_vif *vif);
+void mac_addr_change_hdr_rx (struct ieee80211_local *local, struct ieee80211_hdr *hdr);
+struct sk_buff *construct_custom_packet(struct ieee80211_vif *vif);
 
 #endif // MAC_RANDOMIZER_H

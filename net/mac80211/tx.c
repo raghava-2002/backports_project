@@ -1972,6 +1972,8 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 
 		info->control.vif = vif;
 		control.sta = sta;
+
+		//KEYWORD TO SEARCH: SRIJA
 		//change the base mac address with the random mac address in the header of the packet
 		//tables are updated in the previous functions at invoke_tx_handlers_late function
 		if(RND_MAC){
@@ -2061,7 +2063,7 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 
 
 
-	//KEYWORD TO SEARCH: SRIJA
+	
 	
 	
 	// here just change mac address of the packet based on the instance because in before functions random mac address is already generated 
@@ -4670,7 +4672,6 @@ static int ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 
-	////LOG_FUNC;
 	/*
 	 * Not very nice, but we want to allow the driver to call
 	 * ieee80211_beacon_get() as a response to the set_tim()

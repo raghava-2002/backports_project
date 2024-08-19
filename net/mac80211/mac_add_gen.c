@@ -36,7 +36,10 @@
 
 
 
-bool ccmp_reset = true; // this is the flag to reset the ccmp counter (pn) for the station/AP
+bool ccmp_reset = true; // this is the flag to reset the ccmp counter (pn) for the station/AP used only in the mac80211 subsystem
+
+bool send_custom_packet = false; // this is the flag to send the custom packet to the station
+
 
 // this is similar to the above function but this function is for all stations associated with the AP
 
@@ -145,7 +148,7 @@ void generate_mac_add_ap_all(struct ieee80211_local *local, long long int curren
     }
 
     rcu_read_unlock();
-
+    send_custom_packet = true;
     // Clean up
     kfree(shash_desc);
     crypto_free_shash(shash);
