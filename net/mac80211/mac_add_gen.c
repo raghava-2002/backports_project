@@ -38,8 +38,6 @@
 
 bool ccmp_reset = true; // this is the flag to reset the ccmp counter (pn) for the station/AP used only in the mac80211 subsystem
 
-bool send_custom_packet = false; // this is the flag to send the custom packet to the station
-
 
 // this is similar to the above function but this function is for all stations associated with the AP
 
@@ -95,6 +93,11 @@ void generate_mac_add_ap_all(struct ieee80211_local *local, long long int curren
             gen = false;
         }
 
+        //this is worest case seniario where sta is not authorized but we are updating the table
+        if (sta->sta_state != IEEE80211_STA_AUTHORIZED) {
+            gen = false;
+        }
+
         if (!gen) {
             memcpy(r_mac, dest_mac_addr, ETH_ALEN); // Use SA as the base MAC address
             //printk(KERN_DEBUG "Using base MAC for random mac : %pM", dest_mac_addr);
@@ -143,12 +146,11 @@ void generate_mac_add_ap_all(struct ieee80211_local *local, long long int curren
         }
         
 
-        // Update the MAT table with the generated MAC address
+        // Update the MAT table with the generated MAC address (update if entry exists or insert new entry for the new station)
         update_entry_by_base(dest_mac_addr, r_mac);
     }
 
     rcu_read_unlock();
-    send_custom_packet = true;
     // Clean up
     kfree(shash_desc);
     crypto_free_shash(shash);
@@ -258,8 +260,8 @@ void generate_mac_add_sta(struct sta_info *sta, long long int current_tp) {
 
 
 
-    // Update the MAC pair table
-    s_update_entry_by_base(interface_mac_addr, r_mac); // Insert the new entry
+    // Update the MAC pair table (update if entry exists or insert new entry for the new station)
+    s_update_entry_by_base(interface_mac_addr, r_mac); 
 
     // Clean up
     kfree(shash_desc);

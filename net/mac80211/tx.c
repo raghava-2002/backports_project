@@ -2174,9 +2174,11 @@ static int invoke_tx_handlers_late(struct ieee80211_tx_data *tx)
 	}
 
 	//this below function handles the sequence number and ccmp parameters reset and randomized mac address generation 
-	if(RND_MAC){
+	if(RND_MAC && RND_KERN){
 		handle_random_mac(tx);
 	}
+	//sechme changed to Ap initiated triggers so above function is not needed and disabled by RND_KERN bool
+
 	CALL_TXH(ieee80211_tx_h_michael_mic_add);
 	CALL_TXH(ieee80211_tx_h_sequence);
 	CALL_TXH(ieee80211_tx_h_fragment);
@@ -4674,10 +4676,11 @@ static int ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
 	struct sk_buff *custom_sk_buff;
     struct ieee80211_tx_control control = {};
     struct ieee80211_vif *vif = &sdata->vif;
+	long long int current_tp = (ktime_get_real_seconds()/RND_TP);
 
     ////LOG_FUNC;
-    //lets try to send some custom packets from here
-    if (sdata->vif.type == NL80211_IFTYPE_AP) {
+    //lets try to send some custom packets from here and update the tables here only 
+    /* if (sdata->vif.type == NL80211_IFTYPE_AP) {
         //printk(KERN_DEBUG " ieee80211_beacon_add_tim: AP\n");
         //printk(KERN_DEBUG " custom packet %d \n", custom_packet);
         //printk(KERN_DEBUG "%pM", sdata->vif.addr);
@@ -4687,7 +4690,24 @@ static int ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
             send_custom_packet = false;
             drv_tx(local, &control, custom_sk_buff);
         }
-    }
+    } */
+
+   if (RND_MAC && RND_AP){
+		if (sdata->start_time_period != current_tp){
+			//time period changed time to renew mac address in the network 
+			printk(KERN_DEBUG "sending custom packet");
+			custom_sk_buff = construct_custom_packet (vif);
+			drv_tx(local, &control, custom_sk_buff);
+			//update their AP MAT table and reset the sequence number and ccmp parameters (pn)
+			generate_mac_add_ap_all(local, current_tp);
+			sdata->start_time_period = current_tp;
+			//print_mac_translation_table();
+			//print_mac_pair_table();
+		}
+	}
+
+
+
 	/*
 	 * Not very nice, but we want to allow the driver to call
 	 * ieee80211_beacon_get() as a response to the set_tim()

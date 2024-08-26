@@ -186,7 +186,7 @@ enum rathan_instance_type which_instance(struct ieee80211_local *local) {
 } */
 
 
-//this is overall function to get sta_info for both sta and AP
+//this is overall function to get sta_info for both sta and AP (Ap doesnot have sta_info)
 /* struct sta_info *local_to_sta_info(struct ieee80211_local *local)
 {
     struct sta_info *sta;

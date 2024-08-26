@@ -5,8 +5,7 @@
 
 
 #define TABLE_SIZE 100
-bool it_is_ap = false;
-EXPORT_SYMBOL(it_is_ap);
+
 
 struct mac_translation_entry *translation_table[TABLE_SIZE] = { NULL }; // Global translation hash table
 EXPORT_SYMBOL(translation_table);
@@ -45,6 +44,7 @@ void update_entry_by_base(const unsigned char *base_mac, const unsigned char *ne
         //printk(KERN_DEBUG "Rathan: MAT b Entry with base MAC address not found.\n");
         //if their is no entry with the base mac address then insert the new entry
         insert_entry(base_mac, new_random_mac);
+        printk(KERN_DEBUG "Rathan: MAT b Entry with base MAC address not found. Inserted new entry.\n");
         //printk(KERN_DEBUG "Rathan: MAT b Entry with base MAC address not found. Inserted new entry.\n");
     }
 }

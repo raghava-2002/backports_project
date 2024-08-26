@@ -36,7 +36,19 @@
 
 extern bool RND_MAC;    //  random MAC address generation logic bool edit this in .c file to enable or disable
 
+extern bool RND_KERN;   //  random MAC address generation logic bool to run mac address change by the kernel time period
+extern bool RND_AP;     //  random MAC address generation logic bool by AP intiated trigger
+
+
+struct custom_packet_payload {
+    u8 mac_validity_period; // Time period for MAC validity in seconds
+    u32 mac_generation_seed; // Seed for MAC address generation
+    char message[64]; // Optional text message or additional data
+}; // Custom packet payload data
+
 // Time period for random MAC address generation (in seconds)
+//Incase of kernel time period based random mac address generation this is used every where hardcoded in the kernal
+//Incase of AP intiated trigger based random mac address generation this is used only in the AP case
 #define RND_TP 15
 
 void handle_random_mac(struct ieee80211_tx_data *tx);

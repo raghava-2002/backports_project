@@ -5,8 +5,7 @@
 #include "rathan_tables/mac_pair_station.h"
 
 #define TABLE_SIZE 10
-bool it_is_sta = false;
-EXPORT_SYMBOL(it_is_sta);
+
 
 struct mac_pair *s_translation_table[TABLE_SIZE] = { NULL }; // Global translation hash table
 EXPORT_SYMBOL(s_translation_table);
@@ -44,7 +43,8 @@ void s_update_entry_by_base(const unsigned char *base_mac, const unsigned char *
         // Entry with the specified base MAC address found, update its random MAC address
         memcpy(entry->s_random_mac, new_random_mac, ETH_ALEN);
     } else {
-        printk(KERN_DEBUG "Mac pair: Entry with base MAC address not found.\n");
+        s_insert_entry(base_mac, new_random_mac);
+        printk(KERN_DEBUG "Mac pair: Entry with base MAC address not found. Inserted new entry.\n");
     }
 }
 

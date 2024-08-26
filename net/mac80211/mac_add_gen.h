@@ -5,7 +5,7 @@
 #include <net/mac80211.h>
 #include <linux/ieee80211.h>
 
-extern bool send_custom_packet;
+
 
 void generate_mac_add_sta(struct sta_info *sta, long long int current_tp);
 void generate_mac_add_ap_all(struct ieee80211_local *local, long long int current_tp);

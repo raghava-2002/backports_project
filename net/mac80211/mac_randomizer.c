@@ -11,6 +11,12 @@
 
 bool RND_MAC = true;    // Enable random MAC address generation logic 
 
+//enable random mac address generation by kernal time interval  
+bool RND_KERN = false;
+
+//enable random mac address generation by AP intiated triggers
+bool RND_AP = true;
+
 
 
 bool debug = true;
@@ -36,10 +42,6 @@ void handle_random_mac(struct ieee80211_tx_data *tx) {
 
 
     trigger_flag = true;
-    //skb = tx->skb;
-    //sta = tx->sta;
-    //local = tx->local;
-    //sdata = tx->sdata;
 
 
 
@@ -296,8 +298,8 @@ void mac_addr_change_hdr_rx (struct ieee80211_local *local, struct ieee80211_hdr
 	struct mac_translation_entry *entry;
     struct ieee80211_sub_if_data *sdata_instance;
     long long int current_tp;
+    struct sta_info *test_sta;
 
-    current_tp = (ktime_get_real_seconds()/RND_TP);
     
 
 
@@ -310,7 +312,12 @@ void mac_addr_change_hdr_rx (struct ieee80211_local *local, struct ieee80211_hdr
 			case rathan_INSTANCE_STA:
 				//printk(KERN_INFO "The instance is a STA (Station)\n");
 				//printk(KERN_DEBUG "Instance mac: %pM\n", instance_mac);
-				
+				test_sta = local_to_sta_info(local);
+                /* if (test_sta){
+                    printk(KERN_DEBUG "STA RX: %lld\n", test_sta->start_time_period);
+                }else{
+                    printk(KERN_DEBUG "STA RX: sta is null\n");
+                } */
 				
 				//printk(KERN_DEBUG "sta RX skb: seq number %u\n", le16_to_cpu(hdr->seq_ctrl) >> 4);
 
@@ -344,13 +351,18 @@ void mac_addr_change_hdr_rx (struct ieee80211_local *local, struct ieee80211_hdr
 			case rathan_INSTANCE_AP:
 				//printk(KERN_INFO "The instance is an AP (Access Point)\n");
 				//printk(KERN_DEBUG "Interface: %pM\n", instance_mac);
+
 				sdata_instance = get_ap_sdata(local);
-				if (sdata_instance) {
+                //below if only works with the mac randomization by kernel time interval
+				if (sdata_instance && RND_KERN) {
 					//printk(KERN_DEBUG "AP RX current %lld instance: %lld\n", current_tp, sdata_instance->start_time_period);
-					if (current_tp != sdata_instance->start_time_period ) {
+                    //printk(KERN_DEBUG "AP RX: %lld\n", sdata_instance->start_time_period);
+					current_tp = (ktime_get_real_seconds()/RND_TP);
+                    if (current_tp != sdata_instance->start_time_period ) {
 						//printk(KERN_DEBUG " AP RX: New Time Period\n");
 						generate_mac_add_ap_all(local, current_tp);
 						sdata_instance->start_time_period = current_tp;
+                        printk(KERN_DEBUG "Fucking hell loop ");
 						
 					}
 				}
@@ -397,10 +409,11 @@ struct sk_buff *construct_custom_packet(struct ieee80211_vif *vif){
 
     struct sk_buff *custom_skb;
     struct ieee80211_hdr *hdr;
+    struct custom_packet_payload payload_data; // Custom packet payload data
     int hdr_len = sizeof(struct ieee80211_hdr);
-    int payload_len = 100;
+    int payload_len = sizeof(payload_data);
     int total_len = hdr_len + payload_len;
-    u8 *payload;
+    u8 *payload; //pointer to the payload
 
     //Allocate a new skb for the custom packet 
     custom_skb = dev_alloc_skb(total_len);
@@ -409,12 +422,20 @@ struct sk_buff *construct_custom_packet(struct ieee80211_vif *vif){
         return NULL;
     }
 
+    // Prepare the payload data
+    payload_data.mac_validity_period = RND_TP; //validity period for MAC address in seconds
+    payload_data.mac_generation_seed = 123456789; // Seed for MAC address generation
+    strncpy(payload_data.message, "This is was a extra message to the station", sizeof(payload_data.message) - 1);
+    payload_data.message[sizeof(payload_data.message) - 1] = '\0';
+
     //Reserve space for the header
     skb_reserve(custom_skb, hdr_len);
 
     //Add the payload
     payload = skb_put(custom_skb, payload_len);
-    memset(payload, 0xab, payload_len);
+    memcpy(payload, &payload_data, payload_len);
+
+
 
     //Fill in the header
     hdr = (struct ieee80211_hdr *)skb_push(custom_skb, hdr_len);

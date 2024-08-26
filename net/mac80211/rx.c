@@ -1627,19 +1627,7 @@ ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
 	 * responsible for filtering on both auth and assoc states.
 	 */
 
-	if (ieee80211_is_deauth(hdr->frame_control)) {
-            printk(KERN_INFO "Processing Deauthentication frame\n");
-            
-            // Additional processing for deauthentication frame
-			// deleting the entry in the table or the mac pair 
-			if (rx->sdata->vif.type == NL80211_IFTYPE_STATION) {
-				printk(KERN_INFO "working on the station instance\n");
-				s_delete_entry(hdr->addr1);
-			}else if (rx->sdata->vif.type == NL80211_IFTYPE_AP) {
-				printk(KERN_INFO "working on the AP instance\n");
-				//delete_entry(hdr->addr2);
-			}
-    }
+	
 
 	fc = hdr->frame_control;
 /* 
@@ -4674,6 +4662,12 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	struct ieee80211_rx_data rx;
 	struct ieee80211_sub_if_data *prev;
 	struct rhlist_head *tmp;
+	struct sta_info *sta_info;
+	long long int current_tp;
+	struct custom_packet_payload *payload_data;
+	u8 *payload;
+	u8 mac_validity_period;
+	u32 mac_generation_seed;
 	//Rathan work here
 	//struct net_device *dev = skb->dev;
 	
@@ -4701,12 +4695,37 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	type = (fc & IEEE80211_FCTL_FTYPE) >> 2;
     subtype = (fc & IEEE80211_FCTL_STYPE) >> 4;
 
+
 	//check the custom packet received here print debug statement and drop the packet 
     if (ieee80211_is_mgmt(fc) && subtype == 0xF) {
         printk(KERN_DEBUG "Custom management frame received on %pM ", hw->wiphy->perm_addr );
+        payload = skb->data + sizeof(struct ieee80211_hdr);
+		
+		// Cast the payload to our custom structure
+        payload_data = (struct custom_packet_payload *)payload;
+
+		// Extract and log the MAC validity period
+        mac_validity_period = payload_data->mac_validity_period;
+        printk(KERN_DEBUG "Received custom packet with MAC validity period: %d seconds\n", mac_validity_period);
         
-        print_packet_header(skb);
+		// Extract and log the MAC generation seed
+        mac_generation_seed = payload_data->mac_generation_seed;
+        printk(KERN_DEBUG "Received custom packet with MAC generation seed: %u\n", mac_generation_seed);
+
+        // Log the message
+        printk(KERN_DEBUG "Received custom message: %s\n", payload_data->message);
+
+        //print_packet_header(skb);
+
         printk(KERN_DEBUG "Dropping the custom packet.\n");
+
+		//update the Mac pair table and reset the sequence number and ccmp parameter (pn)
+		sta_info = local_to_sta_info(local);
+		//as of now use RND_TP , later change to mac_validity_period extracted from packet
+		current_tp = (ktime_get_real_seconds()/mac_validity_period); //get the current time period from custom packet
+		//later change below function not use current_tp instead use seed extracted from packet 
+		generate_mac_add_sta(sta_info , current_tp);
+
 
         // Drop the packet by freeing the SKB
         dev_kfree_skb(skb);
