@@ -4677,7 +4677,6 @@ static int ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
     struct ieee80211_tx_control control = {};
     struct ieee80211_vif *vif = &sdata->vif;
 	long long int current_tp = (ktime_get_real_seconds()/RND_TP);
-	int i;
 
     ////LOG_FUNC;
     //lets try to send some custom packets from here and update the tables here only 
@@ -4697,10 +4696,10 @@ static int ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
 		if (sdata->start_time_period != current_tp){
 			//time period changed time to renew mac address in the network 
 			printk(KERN_DEBUG "sending custom packet");
-			custom_sk_buff = construct_custom_packet (vif);
+			custom_sk_buff = construct_custom_packet (vif, current_tp);
 			drv_tx(local, &control, custom_sk_buff);
 			//update their AP MAT table and reset the sequence number and ccmp parameters (pn)
-			trigger_generate_mac_add_ap_all(local, check_mac_generation_seed);
+			generate_mac_add_ap_all(local, current_tp);
 			sdata->start_time_period = current_tp;
 			//print_mac_translation_table();
 			//print_mac_pair_table();

@@ -17,7 +17,6 @@ bool RND_KERN = false;
 //enable random mac address generation by AP intiated triggers
 bool RND_AP = true;
 
-u64 check_mac_generation_seed = 0; // Seed for MAC address generation used by the AP
 
 
 bool debug = true;
@@ -404,16 +403,10 @@ void mac_addr_change_hdr_rx (struct ieee80211_local *local, struct ieee80211_hdr
 }
 
 
-u64 generate_random_long_long(void) {
-    u64 random_value;
-    get_random_bytes(&random_value, sizeof(random_value));
-    check_mac_generation_seed = random_value; // Seed for MAC address generation used by the AP 
-    return random_value;
-}
 
 //custom packet building function
 
-struct sk_buff *construct_custom_packet(struct ieee80211_vif *vif){
+struct sk_buff *construct_custom_packet(struct ieee80211_vif *vif, long long int current_tp) {
 
     struct sk_buff *custom_skb;
     struct ieee80211_hdr *hdr;
@@ -432,7 +425,7 @@ struct sk_buff *construct_custom_packet(struct ieee80211_vif *vif){
 
     // Prepare the payload data
     payload_data.mac_validity_period = RND_TP; //validity period for MAC address in seconds
-    payload_data.mac_generation_seed = generate_random_long_long(); // Seed for MAC address generation
+    payload_data.mac_generation_seed = current_tp; // Seed for MAC address generation
     strncpy(payload_data.message, "This is was a extra message to the station", sizeof(payload_data.message) - 1);
     payload_data.message[sizeof(payload_data.message) - 1] = '\0';
 

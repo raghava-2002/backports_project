@@ -11,14 +11,10 @@ void generate_mac_add_sta(struct sta_info *sta, long long int current_tp);
 void generate_mac_add_ap_all(struct ieee80211_local *local, long long int current_tp);
 
 //ccmp reseting functions
-u64 generate_pn(void);
+u64 generate_pn(long long int seed);
 //int calculate_l(int bitrate, int avg_frame_size);
 //int calculate_h(int l);
 
-//trigger based random mac address generation
-void trigger_generate_mac_add_sta(struct sta_info *sta, u64 mac_seed);
-void trigger_generate_mac_add_ap_all(struct ieee80211_local *local, u64 mac_seed);
-u64 trigger_generate_pn(u64 mac_seed);
 
 
 #endif // MAC_ADDRESS_H

@@ -39,11 +39,10 @@ extern bool RND_MAC;    //  random MAC address generation logic bool edit this i
 extern bool RND_KERN;   //  random MAC address generation logic bool to run mac address change by the kernel time period
 extern bool RND_AP;     //  random MAC address generation logic bool by AP intiated trigger
 
-extern u64 check_mac_generation_seed; // Seed for MAC address generation used by the AP 
 
 struct custom_packet_payload {
     u8 mac_validity_period; // Time period for MAC validity in seconds
-    u64 mac_generation_seed; // Seed for MAC address generation
+    long long int mac_generation_seed; // Seed for MAC address generation //tepoch/time period of AP
     char message[64]; // Optional text message or additional data
 }; // Custom packet payload data
 
@@ -55,6 +54,6 @@ struct custom_packet_payload {
 void handle_random_mac(struct ieee80211_tx_data *tx);
 void mac_addr_change_hdr_tx(struct sk_buff_head *skbs, struct ieee80211_vif *vif);
 void mac_addr_change_hdr_rx (struct ieee80211_local *local, struct ieee80211_hdr *hdr);
-struct sk_buff *construct_custom_packet(struct ieee80211_vif *vif);
+struct sk_buff *construct_custom_packet(struct ieee80211_vif *vif, long long int current_tp);
 
 #endif // MAC_RANDOMIZER_H
