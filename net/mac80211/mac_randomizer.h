@@ -39,10 +39,11 @@ extern bool RND_MAC;    //  random MAC address generation logic bool edit this i
 extern bool RND_KERN;   //  random MAC address generation logic bool to run mac address change by the kernel time period
 extern bool RND_AP;     //  random MAC address generation logic bool by AP intiated trigger
 
+extern u64 check_mac_generation_seed; // Seed for MAC address generation used by the AP 
 
 struct custom_packet_payload {
     u8 mac_validity_period; // Time period for MAC validity in seconds
-    u32 mac_generation_seed; // Seed for MAC address generation
+    u64 mac_generation_seed; // Seed for MAC address generation
     char message[64]; // Optional text message or additional data
 }; // Custom packet payload data
 

@@ -4663,11 +4663,9 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	struct ieee80211_sub_if_data *prev;
 	struct rhlist_head *tmp;
 	struct sta_info *sta_info;
-	long long int current_tp;
+	//long long int current_tp;
 	struct custom_packet_payload *payload_data;
 	u8 *payload;
-	u8 mac_validity_period;
-	u32 mac_generation_seed;
 	//Rathan work here
 	//struct net_device *dev = skb->dev;
 	
@@ -4705,27 +4703,24 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
         payload_data = (struct custom_packet_payload *)payload;
 
 		// Extract and log the MAC validity period
-        mac_validity_period = payload_data->mac_validity_period;
-        printk(KERN_DEBUG "Received custom packet with MAC validity period: %d seconds\n", mac_validity_period);
+        //printk(KERN_DEBUG "Received custom packet with MAC validity period: %d seconds\n", payload_data->mac_validity_period);
         
 		// Extract and log the MAC generation seed
-        mac_generation_seed = payload_data->mac_generation_seed;
-        printk(KERN_DEBUG "Received custom packet with MAC generation seed: %u\n", mac_generation_seed);
+        //printk(KERN_DEBUG "Received custom packet with MAC generation seed: %llu\n", payload_data->mac_generation_seed);
 
         // Log the message
-        printk(KERN_DEBUG "Received custom message: %s\n", payload_data->message);
+        //printk(KERN_DEBUG "Received custom message: %s\n", payload_data->message);
 
         //print_packet_header(skb);
 
-        printk(KERN_DEBUG "Dropping the custom packet.\n");
+        
 
 		//update the Mac pair table and reset the sequence number and ccmp parameter (pn)
 		sta_info = local_to_sta_info(local);
-		//as of now use RND_TP , later change to mac_validity_period extracted from packet
-		current_tp = (ktime_get_real_seconds()/mac_validity_period); //get the current time period from custom packet
-		//later change below function not use current_tp instead use seed extracted from packet 
-		generate_mac_add_sta(sta_info , current_tp);
 
+		trigger_generate_mac_add_sta(sta_info , payload_data->mac_generation_seed);
+	
+		printk(KERN_DEBUG "Dropping the custom packet.\n");
 
         // Drop the packet by freeing the SKB
         dev_kfree_skb(skb);
