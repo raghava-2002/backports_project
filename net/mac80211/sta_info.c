@@ -346,7 +346,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	ktime_get_real_ts64(&ts);
     sta->start_time_period = ts.tv_sec / RND_TP;
 	printk(KERN_DEBUG "Station start time period: %lld\n", sta->start_time_period);
-
+	sta->mac_seed = 0;
 	spin_lock_init(&sta->lock);
 	spin_lock_init(&sta->ps_lock);
 	INIT_WORK(&sta->drv_deliver_wk, sta_deliver_ps_frames);

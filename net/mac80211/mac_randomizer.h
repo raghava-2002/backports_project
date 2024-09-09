@@ -38,7 +38,10 @@ extern bool RND_MAC;    //  random MAC address generation logic bool edit this i
 
 extern bool RND_KERN;   //  random MAC address generation logic bool to run mac address change by the kernel time period
 extern bool RND_AP;     //  random MAC address generation logic bool by AP intiated trigger
+extern int packet_count; //packet count for the AP initiated trigger
 
+//extern long long int rcv_mac_seed; //to keep track of current seed for the station
+extern int no_of_custom_packets; //no of packets to be sent by the AP to trigger the random mac address generation
 
 struct custom_packet_payload {
     u8 mac_validity_period; // Time period for MAC validity in seconds

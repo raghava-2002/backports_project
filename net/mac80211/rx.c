@@ -4717,8 +4717,12 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 
 		//update the Mac pair table and reset the sequence number and ccmp parameter (pn)
 		sta_info = local_to_sta_info(local);
+		if (sta_info->mac_seed != payload_data->mac_generation_seed){
+			sta_info->mac_seed = payload_data->mac_generation_seed;
+			generate_mac_add_sta(sta_info , payload_data->mac_generation_seed);
+		}
 
-		generate_mac_add_sta(sta_info , payload_data->mac_generation_seed);
+		//generate_mac_add_sta(sta_info , payload_data->mac_generation_seed);
 	
 		printk(KERN_DEBUG "Dropping the custom packet.\n");
 

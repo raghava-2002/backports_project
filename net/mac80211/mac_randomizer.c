@@ -17,7 +17,10 @@ bool RND_KERN = false;
 //enable random mac address generation by AP intiated triggers
 bool RND_AP = true;
 
+int packet_count = 0; //packet count for the AP initiated trigger
+int no_of_custom_packets = 3; //no of packets to be sent by the AP to trigger the random mac address generation
 
+//long long int rcv_mac_seed =0; //to keep track of current seed for the station
 
 bool debug = true;
 

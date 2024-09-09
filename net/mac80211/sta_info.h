@@ -537,6 +537,7 @@ struct sta_info {
 	//Rathan added these not store the time period when the station created
 	//can be updated later for the usage 
 	long long start_time_period;
+	long long int mac_seed;
 
 	struct ieee80211_fast_tx __rcu *fast_tx;
 	struct ieee80211_fast_rx __rcu *fast_rx;
