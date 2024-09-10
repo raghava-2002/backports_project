@@ -1627,19 +1627,20 @@ ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
 	 * responsible for filtering on both auth and assoc states.
 	 */
 
-	if (ieee80211_is_deauth(hdr->frame_control)) {
+	/* if (ieee80211_is_deauth(hdr->frame_control)) {
             printk(KERN_INFO "Processing Deauthentication frame\n");
             
             // Additional processing for deauthentication frame
 			// deleting the entry in the table or the mac pair 
 			if (rx->sdata->vif.type == NL80211_IFTYPE_STATION) {
 				printk(KERN_INFO "working on the station instance\n");
+				printk(KERN_DEBUG "rx: sta  addr1 %pM %pM %pM\n", hdr->addr1, hdr->addr2, hdr->addr3);
 				s_delete_entry(hdr->addr1);
 			}else if (rx->sdata->vif.type == NL80211_IFTYPE_AP) {
 				printk(KERN_INFO "working on the AP instance\n");
 				//delete_entry(hdr->addr2);
 			}
-    }
+    } */
 
 	fc = hdr->frame_control;
 /* 

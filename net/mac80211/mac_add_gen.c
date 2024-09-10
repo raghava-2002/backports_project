@@ -123,7 +123,7 @@ void generate_mac_add_ap_all(struct ieee80211_local *local, long long int curren
 
         //here we try to reset ccmp counter (pn) for the station (hard reset for time sake)
         //rndpn64 = 0x123456789ABCULL;
-        if(ccmp_reset){
+        if(ccmp_reset && gen){
             //rndpn64 = 0x000000000123ULL;
             //atomic64_add(0x000001000000ULL, &key->conf.tx_pn);
             //atomic64_set(&key->conf.tx_pn, rndpn64);
@@ -146,7 +146,7 @@ void generate_mac_add_ap_all(struct ieee80211_local *local, long long int curren
         // Update the MAT table with the generated MAC address
         update_entry_by_base(dest_mac_addr, r_mac);
     }
-
+    print_mac_translation_table();
     rcu_read_unlock();
     send_custom_packet = true;
     // Clean up
@@ -171,6 +171,7 @@ void generate_mac_add_sta(struct sta_info *sta, long long int current_tp) {
     //struct ieee80211_sub_if_data *sdata;
     unsigned char r_mac[ETH_ALEN];  // Buffer for the generated random MAC address
     u64 rndpn64;
+
 
 
 
@@ -215,51 +216,49 @@ void generate_mac_add_sta(struct sta_info *sta, long long int current_tp) {
         // Copy current_tp adjacent to the PTK key
         memcpy(data + ETH_ALEN + key->conf.keylen, &current_tp, sizeof(current_tp));
         //printk(KERN_DEBUG "sta in current_tp %lld", current_tp);
+
+        // Compute the hash
+        crypto_shash_digest(shash_desc, data, total_size, hash);
+
+        // Adjust the first byte of the hash to make it a valid MAC address
+        hash[0] = (hash[0] & 0xFC) | 0x02;  // Set bit-0 to 0 and bit-1 to 1
+
+        // Copy the generated MAC address to r_mac
+        memcpy(r_mac, hash, ETH_ALEN);
+        printk(KERN_DEBUG "STA: sta rand mac %pM", r_mac);
+
+        //sequence reset
+        sta->sdata->sequence_number = 0;
+        //print_current_pn(key);
+
+        //here we try to reset ccmp counter (pn) for the station (hard reset for time sake)
+        rndpn64 = 0x123456789ABCULL;
+        
+        if(ccmp_reset){
+            //rndpn64 = 0x000000000123ULL;
+            //atomic64_add(0x000001000000ULL, &key->conf.tx_pn);
+    
+            rndpn64 = generate_pn();
+            //printk(KERN_DEBUG "Test PN: %llu\n", rndpn64);
+            atomic64_set(&key->conf.tx_pn, rndpn64);
+            
+            //atomic64_set(&key->conf.tx_pn, rndpn64);
+            //we need to rest the counter for the multicast packets also
+            /* g_key = rcu_dereference(sta->sdata->default_multicast_key);
+            if(g_key){
+                atomic64_set(&g_key->conf.tx_pn, rndpn64);
+            }else{
+                printk(KERN_DEBUG "STA: Multicast key is null\n");
+            } */
+        }
+        // Update the MAC pair table
+        s_update_entry_by_base(interface_mac_addr, r_mac); // Insert the new entry
     } else {
         printk(KERN_DEBUG "Rathan: key is null ");
     }
     rcu_read_unlock();
 
-    // Compute the hash
-    crypto_shash_digest(shash_desc, data, total_size, hash);
-
-    // Adjust the first byte of the hash to make it a valid MAC address
-    hash[0] = (hash[0] & 0xFC) | 0x02;  // Set bit-0 to 0 and bit-1 to 1
-
-    // Copy the generated MAC address to r_mac
-    memcpy(r_mac, hash, ETH_ALEN);
-    printk(KERN_DEBUG "STA: sta rand mac %pM", r_mac);
-
-    //sequence reset
-    sta->sdata->sequence_number = 0;
-    //print_current_pn(key);
-
-    //here we try to reset ccmp counter (pn) for the station (hard reset for time sake)
-    rndpn64 = 0x123456789ABCULL;
     
-    if(ccmp_reset){
-        //rndpn64 = 0x000000000123ULL;
-        //atomic64_add(0x000001000000ULL, &key->conf.tx_pn);
- 
-        rndpn64 = generate_pn();
-        //printk(KERN_DEBUG "Test PN: %llu\n", rndpn64);
-        atomic64_set(&key->conf.tx_pn, rndpn64);
-        
-        //atomic64_set(&key->conf.tx_pn, rndpn64);
-        //we need to rest the counter for the multicast packets also
-        /* g_key = rcu_dereference(sta->sdata->default_multicast_key);
-        if(g_key){
-            atomic64_set(&g_key->conf.tx_pn, rndpn64);
-        }else{
-            printk(KERN_DEBUG "STA: Multicast key is null\n");
-        } */
-    }
-    
-
-
-
-    // Update the MAC pair table
-    s_update_entry_by_base(interface_mac_addr, r_mac); // Insert the new entry
 
     // Clean up
     kfree(shash_desc);

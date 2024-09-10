@@ -1978,7 +1978,11 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 		//tables are updated in the previous functions at invoke_tx_handlers_late function
 		if(RND_MAC){
 			mac_addr_change_hdr_tx (skbs, vif);
+			//print_mac_translation_table();
 		}
+
+		//check if packet subtype is deauthentification
+		
 		
 
 		__skb_unlink(skb, skbs);

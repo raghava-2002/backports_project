@@ -248,9 +248,6 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_sub_if_data *sdata,
  */
 void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 {
-	printk(KERN_DEBUG "Station is destroyed\n");
-	//here we have to delete the entry from the MAT table or the MAC pair table
-
 	if (sta->rate_ctrl)
 		rate_control_free_sta(sta);
 
@@ -1098,7 +1095,6 @@ static void __sta_info_destroy_part2(struct sta_info *sta)
 		WARN_ON_ONCE(ret != 0);
 	}
 
-	printk(KERN_DEBUG "TEST:Station is destroyed %pM\n", sta->sta.addr);
 	sta_dbg(sdata, "Removed STA %pM\n", sta->sta.addr);
 
 	sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
@@ -1115,7 +1111,15 @@ static void __sta_info_destroy_part2(struct sta_info *sta)
 int __must_check __sta_info_destroy(struct sta_info *sta)
 {
 	int err = __sta_info_destroy_part1(sta);
+	//printk(KERN_DEBUG "place where i can delete entry\n");
 
+	if (sta){
+		//printk(KERN_DEBUG "is being destroyed %pM\n", sta->sta.addr);
+		delete_entry(sta->sta.addr);
+		s_delete_entry(sta->sta.addr);
+	}
+	//delete_entry(sta->sta.addr);
+	//s_delete_entry(sta->sta.addr);
 	if (err)
 		return err;
 

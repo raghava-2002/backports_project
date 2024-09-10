@@ -32,7 +32,7 @@ void handle_random_mac(struct ieee80211_tx_data *tx) {
 	const u8 *dest_mac_addr;
     long long int current_tp;
 
-    current_tp = (ktime_get_real_seconds()/RND_TP);
+    //introducing some time delay for the stations only
 
 
     trigger_flag = true;
@@ -121,6 +121,7 @@ void handle_random_mac(struct ieee80211_tx_data *tx) {
                         //printk(KERN_DEBUG "Tx: sta type AP\n");
                         entry = search_by_base_mac(dest_mac_addr);
                         //printk(KERN_DEBUG "dest mac %pM\n", dest_mac_addr);
+                        current_tp = (ktime_get_real_seconds()/RND_TP);
 
                         if (entry != NULL) {
                             //printk(KERN_DEBUG "Ap case1 tx.c");
@@ -154,7 +155,8 @@ void handle_random_mac(struct ieee80211_tx_data *tx) {
                         //printk(KERN_DEBUG "Tx: sta type STATION\n");
                         //printk(KERN_DEBUG "Rathan: dest mac %pM\n", dest_mac_addr);
                         
-
+                        //intoduce manual time delay for the stations
+                        current_tp = (ktime_get_real_seconds()/RND_TP);
                         //print the sta state also below by sta->sta_state
                         //sta_state11 = sta->sta_state;
                         interface_mac_addr = sta->sdata->vif.addr;
@@ -297,7 +299,7 @@ void mac_addr_change_hdr_rx (struct ieee80211_local *local, struct ieee80211_hdr
     struct ieee80211_sub_if_data *sdata_instance;
     long long int current_tp;
 
-    current_tp = (ktime_get_real_seconds()/RND_TP);
+    
     
 
 
@@ -345,6 +347,7 @@ void mac_addr_change_hdr_rx (struct ieee80211_local *local, struct ieee80211_hdr
 				//printk(KERN_INFO "The instance is an AP (Access Point)\n");
 				//printk(KERN_DEBUG "Interface: %pM\n", instance_mac);
 				sdata_instance = get_ap_sdata(local);
+                current_tp = (ktime_get_real_seconds()/RND_TP);
 				if (sdata_instance) {
 					//printk(KERN_DEBUG "AP RX current %lld instance: %lld\n", current_tp, sdata_instance->start_time_period);
 					if (current_tp != sdata_instance->start_time_period ) {
