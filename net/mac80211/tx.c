@@ -4695,6 +4695,7 @@ static int ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
 	} */
 
 	//sending 3 custom packets to the network
+	//srija
 
 	if (RND_MAC && RND_AP){
 		if (sdata->start_time_period != current_tp){

@@ -5540,11 +5540,6 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 	u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
 	bool tx = !req->local_state_change;
 
-	//here station is deautencited by local choice so, here from AP MAT table delete the entry of station,
-	//delete the entry from the station mac pair 
-
-	printk(KERN_DEBUG "Rathan: omitted %pM", req->bssid);
-	printk(KERN_DEBUG "Rathan: cmitted %pM", sdata->vif.addr);
 
 	if (ifmgd->auth_data &&
 	    ether_addr_equal(ifmgd->auth_data->bss->bssid, req->bssid)) {

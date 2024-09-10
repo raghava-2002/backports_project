@@ -113,32 +113,35 @@ void print_mac_translation_table(void) {
 EXPORT_SYMBOL(print_mac_translation_table);
 
 // Function to delete an entry from the hash table
-void delete_entry(const unsigned char *random_mac) {
-    unsigned int index = hash_function(random_mac);
+void delete_entry(const unsigned char *base_mac) {
     struct mac_translation_entry *prev_entry = NULL;
-    struct mac_translation_entry *entry = translation_table[index];
+    unsigned int index;
     
-    // Traverse the linked list at the index
-    while (entry != NULL) {
-        if (memcmp(entry->random_mac, random_mac, ETH_ALEN) == 0) {
-            // Found the entry with the specified random MAC address
-            if (prev_entry == NULL) {
-                // Entry is the first node in the linked list
-                translation_table[index] = entry->next;
-            } else {
-                // Entry is not the first node, update the previous node's next pointer
-                prev_entry->next = entry->next;
+
+
+    for (index = 0; index < TABLE_SIZE; ++index) {
+        struct mac_translation_entry *cur = translation_table[index];
+        prev_entry = NULL; // Reset prev_entry for each bucket
+        while (cur != NULL) {
+            if (memcmp(cur->base_mac, base_mac, ETH_ALEN) == 0) {
+                // Found the entry, now delete it
+                if (prev_entry == NULL) {
+                    // Entry is the first node in the linked list
+                    translation_table[index] = cur->next;
+                } else {
+                    // Entry is not the first node, update the previous node's next pointer
+                    prev_entry->next = cur->next;
+                }
+                
+                //printk(KERN_DEBUG "Rathan: MAT d Entry with base MAC %pM deleted.\n", base_mac);
+                kfree(cur); // Free the memory allocated for the entry
+                //print_mac_translation_table(); // Print updated table
+                return;
             }
-            
-            // Free the memory allocated for the entry
-            kfree(entry);
-            
-            return;
+            prev_entry = cur;
+            cur = cur->next;
         }
-        
-        prev_entry = entry;
-        entry = entry->next;
     }
-    
-    printk(KERN_DEBUG "Rathan: MAT d Entry with random MAC address not found.\n");
+
+    printk(KERN_DEBUG "MAT d Entry with base MAC %pM not found in the table during deletion.\n", base_mac);
 }

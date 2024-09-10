@@ -4,10 +4,10 @@
 
 #include "rathan_tables/mac_pair_station.h"
 
-#define TABLE_SIZE 10
+#define s_TABLE_SIZE 10
 
 
-struct mac_pair *s_translation_table[TABLE_SIZE] = { NULL }; // Global translation hash table
+struct mac_pair *s_translation_table[s_TABLE_SIZE] = { NULL }; // Global translation hash table
 EXPORT_SYMBOL(s_translation_table);
 
 // Hash function that combines the bytes of a MAC address
@@ -17,7 +17,7 @@ unsigned int s_hash_function(const unsigned char *mac) {
     for (i = 0; i < ETH_ALEN; i++) {
         hash = (hash << 5) + mac[i]; // Rotate hash and add next byte
     }
-    return hash % TABLE_SIZE; // Modulo to fit within table size
+    return hash % s_TABLE_SIZE; // Modulo to fit within table size
 }
 
 
@@ -62,7 +62,7 @@ void s_update_entry_by_random(const unsigned char *random_mac, const unsigned ch
 struct mac_pair *s_search_by_random_mac(const unsigned char *random_mac) {
     // Iterate over all entries in the translation table
 	unsigned int index;
-    for (index = 0; index < TABLE_SIZE; ++index) {
+    for (index = 0; index < s_TABLE_SIZE; ++index) {
         struct mac_pair *entry = s_translation_table[index];
         while (entry != NULL) {
             if (memcmp(entry->s_random_mac, random_mac, ETH_ALEN) == 0) {
@@ -83,7 +83,7 @@ struct mac_pair *s_search_by_base_mac(const unsigned char *base_mac) {
     // Iterate over all entries in the translation table
 	unsigned int index;
     //printk(KERN_DEBUG "Mac pair: Searching for base MAC address\n");
-    for (index = 0; index < TABLE_SIZE; ++index) {
+    for (index = 0; index < s_TABLE_SIZE; ++index) {
         struct mac_pair *entry = s_translation_table[index];
         while (entry != NULL) {
             if (memcmp(entry->s_base_mac, base_mac, ETH_ALEN) == 0) {
@@ -101,7 +101,7 @@ struct mac_pair *s_search_by_base_mac(const unsigned char *base_mac) {
 void print_mac_pair_table(void) {
     int i;
     printk(KERN_DEBUG "Mac pair: MAC pair table:\n");
-    for (i = 0; i < TABLE_SIZE; ++i) {
+    for (i = 0; i < s_TABLE_SIZE; ++i) {
         struct mac_pair *entry = s_translation_table[i];
         while (entry != NULL) {
             printk(KERN_DEBUG "Base MAC: %pM, Random MAC: %pM\n", entry->s_base_mac, entry->s_random_mac);
@@ -112,32 +112,36 @@ void print_mac_pair_table(void) {
 EXPORT_SYMBOL(print_mac_pair_table);
 
 // Function to delete an entry from the hash table
-void s_delete_entry(const unsigned char *random_mac) {
-    unsigned int index = s_hash_function(random_mac);
+void s_delete_entry(const unsigned char *s_base_mac) {
     struct mac_pair *prev_entry = NULL;
-    struct mac_pair *entry = s_translation_table[index];
-    
-    // Traverse the linked list at the index
-    while (entry != NULL) {
-        if (memcmp(entry->s_random_mac, random_mac, ETH_ALEN) == 0) {
-            // Found the entry with the specified random MAC address
-            if (prev_entry == NULL) {
-                // Entry is the first node in the linked list
-                s_translation_table[index] = entry->next;
-            } else {
-                // Entry is not the first node, update the previous node's next pointer
-                prev_entry->next = entry->next;
+    unsigned int index;
+
+
+    for (index = 0; index < s_TABLE_SIZE; ++index) {
+        struct mac_pair *cur = s_translation_table[index];
+        prev_entry = NULL; // Reset prev_entry for each bucket
+        while (cur != NULL) {
+            if (memcmp(cur->s_base_mac, s_base_mac, ETH_ALEN) == 0) {
+                // Found the entry, now delete it
+                if (prev_entry == NULL) {
+                    // Entry is the first node in the linked list
+                    s_translation_table[index] = cur->next;
+                } else {
+                    // Entry is not the first node, update the previous node's next pointer
+                    prev_entry->next = cur->next;
+                }
+                
+                //printk(KERN_DEBUG "Rathan: MAT d Entry with base MAC %pM deleted.\n", base_mac);
+                kfree(cur); // Free the memory allocated for the entry
+                //print_mac_pair_table(); // Print updated table
+                return;
             }
-            
-            // Free the memory allocated for the entry
-            kfree(entry);
-            
-            return;
+            prev_entry = cur;
+            cur = cur->next;
         }
-        
-        prev_entry = entry;
-        entry = entry->next;
     }
-    
-    printk(KERN_DEBUG "Mac pair: Entry with random MAC address not found, nothing to delete entry.\n");
+
+    printk(KERN_DEBUG "MAT d Entry with base MAC %pM not found in the table during deletion.\n", s_base_mac);
+    //print_mac_pair_table();
+
 }
