@@ -156,6 +156,7 @@ void handle_random_mac(struct ieee80211_tx_data *tx) {
                         //printk(KERN_DEBUG "Rathan: dest mac %pM\n", dest_mac_addr);
                         
                         //intoduce manual time delay for the stations
+                        //manual time drift this variable 
                         current_tp = (ktime_get_real_seconds()/RND_TP);
                         //print the sta state also below by sta->sta_state
                         //sta_state11 = sta->sta_state;
