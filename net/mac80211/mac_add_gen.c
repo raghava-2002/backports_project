@@ -146,7 +146,7 @@ void generate_mac_add_ap_all(struct ieee80211_local *local, long long int curren
         // Update the MAT table with the generated MAC address
         update_entry_by_base(dest_mac_addr, r_mac);
     }
-    print_mac_translation_table();
+    //print_mac_translation_table();
     rcu_read_unlock();
     send_custom_packet = true;
     // Clean up

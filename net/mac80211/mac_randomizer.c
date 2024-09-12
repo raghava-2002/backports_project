@@ -33,6 +33,8 @@ void handle_random_mac(struct ieee80211_tx_data *tx) {
     long long int current_tp;
 
     //introducing some time delay for the stations only
+    u64 current_tp_ns;
+    u64 drift_ns;
 
 
     trigger_flag = true;
@@ -157,7 +159,14 @@ void handle_random_mac(struct ieee80211_tx_data *tx) {
                         
                         //intoduce manual time delay for the stations
                         //manual time drift this variable 
-                        current_tp = (ktime_get_real_seconds()/RND_TP);
+                        current_tp_ns = ktime_get_real_ns();
+                        drift_ns = 1000000;  // 1 millisecond drift in nanoseconds
+                        //drift_ns = 1000000000;  //  1 second drift in nanoseconds
+                        //drift_ns = 500000000;  // 0.5 second drift in nanoseconds
+                        //drift_ns = 0;  // no drift
+                        current_tp_ns = (current_tp_ns + drift_ns);  // Adjust with drift
+
+                        current_tp = ((current_tp_ns/1000000000)/RND_TP);
                         //print the sta state also below by sta->sta_state
                         //sta_state11 = sta->sta_state;
                         interface_mac_addr = sta->sdata->vif.addr;
