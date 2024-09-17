@@ -35,6 +35,11 @@ void handle_random_mac(struct ieee80211_tx_data *tx) {
     //introducing some time delay for the stations only
     u64 current_tp_ns;
     u64 drift_ns;
+    // Define the MAC addresses for the specific stations
+    unsigned char station1_mac[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x01, 0x00};
+    unsigned char station2_mac[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x02, 0x00};
+    unsigned char station3_mac[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x03, 0x00};
+    unsigned char station4_mac[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x04, 0x00};
 
 
     trigger_flag = true;
@@ -159,17 +164,34 @@ void handle_random_mac(struct ieee80211_tx_data *tx) {
                         
                         //intoduce manual time delay for the stations
                         //manual time drift this variable 
+                        interface_mac_addr = sta->sdata->vif.addr;
                         current_tp_ns = ktime_get_real_ns();
-                        drift_ns = 1000000;  // 1 millisecond drift in nanoseconds
+                        /* drift_ns = 10000000;  // 10 millisecond drift in nanoseconds
                         //drift_ns = 1000000000;  //  1 second drift in nanoseconds
                         //drift_ns = 500000000;  // 0.5 second drift in nanoseconds
-                        //drift_ns = 0;  // no drift
+                        //drift_ns = 0;  // no drift */
+
+                        // Apply different drift values based on station MAC address
+                        if (memcmp(interface_mac_addr, station1_mac, ETH_ALEN) == 0) {
+                            drift_ns = 10000000;  // 10 millisecond drift for station 1
+                            //printk(KERN_DEBUG "Station 1 10ms drift\n");
+                        } else if (memcmp(interface_mac_addr, station2_mac, ETH_ALEN) == 0) {
+                            drift_ns = 20000000;  // 20 millisecond drift for station 2
+                            //printk(KERN_DEBUG "Station 2 20ms drift\n");
+                        } else if (memcmp(interface_mac_addr, station3_mac, ETH_ALEN) == 0){
+                            drift_ns = 30000000;  // No drift for other stations
+                        }else if (memcmp(interface_mac_addr, station4_mac, ETH_ALEN) == 0){
+                            drift_ns = 40000000;  // No drift for other stations
+                        } else {
+                            drift_ns = 0;  // No drift for other stations
+                        }
+
                         current_tp_ns = (current_tp_ns + drift_ns);  // Adjust with drift
 
                         current_tp = ((current_tp_ns/1000000000)/RND_TP);
                         //print the sta state also below by sta->sta_state
                         //sta_state11 = sta->sta_state;
-                        interface_mac_addr = sta->sdata->vif.addr;
+                        
                         
                         //mac pair structure is completely changed, it is similar to mac translation table
                         //we have to change it 
