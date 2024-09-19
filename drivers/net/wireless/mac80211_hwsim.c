@@ -977,6 +977,11 @@ static void mac80211_hwsim_addr_iter(void *data, u8 *mac,
 				     struct ieee80211_vif *vif)
 {
 	struct mac80211_hwsim_addr_match_data *md = data;
+	struct mac_pair *pair = s_search_by_random_mac(md->addr);
+	if (pair != NULL) {
+		md->ret = true;
+	   //printk(KERN_DEBUG "ACK sent for randomized MAC address %pM\n", md->addr);
+	}
 
 	//LOG_FUNC;
 	if (memcmp(mac, md->addr, ETH_ALEN) == 0)
@@ -1310,8 +1315,6 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_rx_status rx_status;
-	//struct mac_translation_entry *entry;
-	struct mac_pair *pair;
 	u64 now;
 
 	//LOG_FUNC;
@@ -1425,8 +1428,6 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 				continue;
 		}
 
-		//rathan wrote this commented lines 
-		//make this ack as true for an ack to be sent
 		if (mac80211_hwsim_addr_match(data2, hdr->addr1))
 			ack = true;
 
@@ -1442,23 +1443,7 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 
 
 		
-		
-
-		//print_mac_translation_table();
-		//print_mac_pair_table();
-		pair = s_search_by_random_mac(hdr->addr1);
-		if(pair != NULL){
-			//printk(KERN_DEBUG "entry: addr1 %pM, base_mac %pM, random_mac %pM\n", hdr->addr1, entry->base_mac, entry->random_mac);
-			ack = true;
-		}
-		else{
-			//printk(KERN_DEBUG "no entry: addr1 %pM, addr2 %pM, addr3 %pM\n", hdr->addr1, hdr->addr2, hdr->addr3);
-		}
-
-		//some debugging 
-		//printk(KERN_DEBUG " ap = %s, RA %pM, sta = %s\n", it_is_ap ? "true" : "false", hdr->addr1, it_is_sta ? "true" : "false");
-		//print_mac_pair_table();
-		
+		//ack handleing is changed to mac80211_hwsim_addr_iter function for better useage for working like a virtual interfaces for the same device 
 
 
 
