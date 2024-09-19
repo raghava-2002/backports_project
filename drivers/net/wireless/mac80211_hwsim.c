@@ -978,6 +978,14 @@ static void mac80211_hwsim_addr_iter(void *data, u8 *mac,
 {
 	struct mac80211_hwsim_addr_match_data *md = data;
 
+	//print_mac_pair_table();
+
+    // Check for randomized MAC address in the table and return true if found so that ack is handles automatically by the driver properly
+    struct mac_pair *pair = s_search_by_random_mac(md->addr);
+    if (pair != NULL) {
+        md->ret = true;
+		//printk(KERN_DEBUG "ACK sent for randomized MAC address %pM\n", md->addr);
+	}
 	//LOG_FUNC;
 	if (memcmp(mac, md->addr, ETH_ALEN) == 0)
 		md->ret = true;
@@ -1118,6 +1126,19 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 	//printk(KERN_DEBUG "hwsim Rathan: TX frame\n");
 
 
+	/* if (!(ieee80211_is_beacon(hdr->frame_control))) {
+		printk(KERN_DEBUG "Transmitting packet from %pM to %pM on interface %s\n",
+			hdr->addr2, hdr->addr1, wiphy_name(hw->wiphy));
+
+		if (data->addresses[1].addr){
+			printk(KERN_DEBUG "1 tetsting the address %pM\n", data->addresses[1].addr);
+		}
+
+		if (data->addresses[0].addr){
+			printk(KERN_DEBUG "2 tetsting the address %pM\n", data->addresses[0].addr);
+		}
+	} */
+
 	if (data->ps != PS_DISABLED)
 		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
 	/* If the queue contains MAX_QUEUE skb's drop some */
@@ -1143,6 +1164,8 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 	if (nla_put(skb, HWSIM_ATTR_ADDR_TRANSMITTER,
 		    ETH_ALEN, data->addresses[1].addr))
 		goto nla_put_failure;
+	
+	
 
 	/* We get the skb->data */
 	if (nla_put(skb, HWSIM_ATTR_FRAME, my_skb->len, my_skb->data))
@@ -1311,7 +1334,7 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_rx_status rx_status;
 	//struct mac_translation_entry *entry;
-	struct mac_pair *pair;
+	//struct mac_pair *pair;
 	u64 now;
 
 	//LOG_FUNC;
@@ -1446,14 +1469,14 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 
 		//print_mac_translation_table();
 		//print_mac_pair_table();
-		pair = s_search_by_random_mac(hdr->addr1);
+		/* pair = s_search_by_random_mac(hdr->addr1);
 		if(pair != NULL){
 			//printk(KERN_DEBUG "entry: addr1 %pM, base_mac %pM, random_mac %pM\n", hdr->addr1, entry->base_mac, entry->random_mac);
 			ack = true;
 		}
 		else{
 			//printk(KERN_DEBUG "no entry: addr1 %pM, addr2 %pM, addr3 %pM\n", hdr->addr1, hdr->addr2, hdr->addr3);
-		}
+		} */
 
 		//some debugging 
 		//printk(KERN_DEBUG " ap = %s, RA %pM, sta = %s\n", it_is_ap ? "true" : "false", hdr->addr1, it_is_sta ? "true" : "false");
@@ -3442,6 +3465,7 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 	struct mac80211_hwsim_data *data2;
 	struct ieee80211_tx_info *txi;
 	struct hwsim_tx_rate *tx_attempts;
+	//struct mac_pair *pair;
 	u64 ret_skb_cookie;
 	struct sk_buff *skb, *tmp;
 	const u8 *src;
@@ -3509,14 +3533,21 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 	//rathan Acknowlegement work should be done here 
 	//KEYWORD TO SEARCH: SRIJA
 	// import the table here and send the ack
-	printk(KERN_DEBUG "Rathan nl: Acknowledgement work should be done here\n");
 
+	//printk(KERN_DEBUG "Rathan nl: Acknowledgement work should be done here\n");
+	//printk(KERN_DEBUG "Rathan nl:");
+	//print_mac_pair_table();
+
+	
+
+	//make the Flag high to send the Acknowledgement HWSIM_TX_STAT_ACK manually when ever you observed the hdr->addr2 present in the table
 	if (!(hwsim_flags & HWSIM_TX_CTL_NO_ACK) &&
 	   (hwsim_flags & HWSIM_TX_STAT_ACK)) {
 		if (skb->len >= 16) {
 			hdr = (struct ieee80211_hdr *) skb->data;
 			mac80211_hwsim_monitor_ack(data2->channel,
 						   hdr->addr2);
+			printk(KERN_DEBUG "Rathan nl: Acknowledgement is sent from %pM to %pM\n", hdr->addr2, hdr->addr1);
 		}
 		txi->flags |= IEEE80211_TX_STAT_ACK;
 	}
