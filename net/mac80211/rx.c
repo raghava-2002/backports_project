@@ -4736,7 +4736,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 
 	//here mac pair struture is changed as mac pair table, it is similar to the mac translation table
 	
-	if(RND_MAC){
+	if(RND_MAC && END_change){
 		mac_addr_change_hdr_rx(local, hdr);
 	}
 	

@@ -977,9 +977,6 @@ static void mac80211_hwsim_addr_iter(void *data, u8 *mac,
 				     struct ieee80211_vif *vif)
 {
 	struct mac80211_hwsim_addr_match_data *md = data;
-
-	//print_mac_pair_table();
-
     // Check for randomized MAC address in the table and return true if found so that ack is handles automatically by the driver properly
     struct mac_pair *pair = s_search_by_random_mac(md->addr);
     if (pair != NULL) {
@@ -1108,36 +1105,13 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 	struct hwsim_tx_rate tx_attempts[IEEE80211_TX_MAX_RATES];
 	struct hwsim_tx_rate_flag tx_attempts_flags[IEEE80211_TX_MAX_RATES];
 	uintptr_t cookie;
+	bool debug = false;
 
 	//LOG_FUNC;
-	/* Print out frame information  Rathan  MAC addresses of the destination, source, and BSSID respectively*/
-    /*
-	printk(KERN_DEBUG "hwsim Rathan: TX frame, addr1=%pM, addr2=%pM, addr3=%pM\n",
-           hdr->addr1, hdr->addr2, hdr->addr3);
-	*/
-
-
-	// to log how packet is going to be transmitted
-	/*
-	printk(KERN_DEBUG "Transmitting packet from %pM to %pM on interface %s\n",
-		hdr->addr2, hdr->addr1, wiphy_name(hw->wiphy));
-	*/
-	// Rathan print the a line to know that the function is called
-	//printk(KERN_DEBUG "hwsim Rathan: TX frame\n");
-
-
-	/* if (!(ieee80211_is_beacon(hdr->frame_control))) {
-		printk(KERN_DEBUG "Transmitting packet from %pM to %pM on interface %s\n",
-			hdr->addr2, hdr->addr1, wiphy_name(hw->wiphy));
-
-		if (data->addresses[1].addr){
-			printk(KERN_DEBUG "1 tetsting the address %pM\n", data->addresses[1].addr);
-		}
-
-		if (data->addresses[0].addr){
-			printk(KERN_DEBUG "2 tetsting the address %pM\n", data->addresses[0].addr);
-		}
-	} */
+	if (!(ieee80211_is_beacon(hdr->frame_control))) {
+        printk(KERN_DEBUG "tx_frame_nl: Packet hdr SA %pM to DA %pM\n", hdr->addr2, hdr->addr1);
+		debug = true;
+    }
 
 	if (data->ps != PS_DISABLED)
 		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
@@ -1213,11 +1187,21 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 	info->rate_driver_data[0] = (void *)cookie;
 	if (nla_put_u64_64bit(skb, HWSIM_ATTR_COOKIE, cookie, HWSIM_ATTR_PAD))
 		goto nla_put_failure;
-
+	// Debug: Print before calling hwsim_unicast_netgroup
+	if (debug) {
+    	printk(KERN_DEBUG "tx_frame_nl: About to call hwsim_unicast_netgroup\n");
+	}
 	genlmsg_end(skb, msg_head);
-	if (hwsim_unicast_netgroup(data, skb, dst_portid))
+	if (hwsim_unicast_netgroup(data, skb, dst_portid)){
+		if (debug) {
+			printk(KERN_DEBUG "tx_frame_nl: hwsim_unicast_netgroup failed\n");
+		}
 		goto err_free_txskb;
-
+	}
+	// Debug: Print after successfully sending the packet
+	if (debug) {
+    	printk(KERN_DEBUG "tx_frame_nl: Packet successfully sent to wmediumd\n");
+	}
 	/* Enqueue the packet */
 	skb_queue_tail(&data->pending, my_skb);
 	data->tx_pkts++;
@@ -3461,7 +3445,7 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 					   struct genl_info *info)
 {
 
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr *hdr, *eth_hdr;
 	struct mac80211_hwsim_data *data2;
 	struct ieee80211_tx_info *txi;
 	struct hwsim_tx_rate *tx_attempts;
@@ -3537,6 +3521,14 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 	//printk(KERN_DEBUG "Rathan nl: Acknowledgement work should be done here\n");
 	//printk(KERN_DEBUG "Rathan nl:");
 	//print_mac_pair_table();
+	//debug the packet here and check the address of the transmitter in the header 
+	
+	eth_hdr = (struct ieee80211_hdr *) skb->data;
+    if (!(ieee80211_is_beacon(eth_hdr->frame_control))) {
+        //printk(KERN_DEBUG "Packet hdr SA %pM to DA %pM\n", eth_hdr->addr2, eth_hdr->addr1);
+		//printk(KERN_DEBUG "tx address src is %pM 0 is %pM or 1 is %pM ", src, data2->addresses[0].addr, data2->addresses[1].addr);
+
+    }
 
 	
 

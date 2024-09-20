@@ -12,7 +12,7 @@
 bool RND_MAC = true;    // Enable random MAC address generation logic 
 
 
-//bool END_change = false; // Enable random MAC address change in the header logic at tx and rx
+bool END_change = true; // Enable random MAC address change in the header logic at tx and rx
 
 bool debug = true;
 

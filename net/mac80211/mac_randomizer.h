@@ -36,7 +36,7 @@
 
 extern bool RND_MAC;    //  random MAC address generation logic bool edit this in .c file to enable or disable
 
-//extern bool END_change; // Enable random MAC address change in the header logic at tx and rx
+extern bool END_change; // Enable random MAC address change in the header logic at tx and rx
 // Time period for random MAC address generation (in seconds)
 #define RND_TP 15
 

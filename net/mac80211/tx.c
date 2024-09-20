@@ -1976,8 +1976,9 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 		//KEYWORD TO SEARCH: SRIJA
 		//change the base mac address with the random mac address in the header of the packet
 		//tables are updated in the previous functions at invoke_tx_handlers_late function
-		if(RND_MAC){
+		if(RND_MAC && END_change){
 			mac_addr_change_hdr_tx (skbs, vif);
+			//printk(KERN_DEBUG "TX: mac address changed\n");
 		}
 		
 
