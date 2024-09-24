@@ -22,5 +22,6 @@ struct mac_translation_entry *search_by_base_mac(const unsigned char *base_mac);
 void print_mac_translation_table(void);  // Declaration of the print function
 void delete_entry(const unsigned char *random_mac);
 
+void cleanup_mac_translation_table(void);  // Declaration of the cleanup function
 
 #endif /* MAC_TRANSLATION_TABLE_H */

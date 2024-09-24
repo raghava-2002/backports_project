@@ -3,6 +3,7 @@
 
 
 #include "rathan_tables/mac_pair_station.h"
+#include "rathan_tables/mac_translation_table.h"
 
 #define TABLE_SIZE 10
 bool it_is_sta = false;
@@ -141,3 +142,124 @@ void s_delete_entry(const unsigned char *random_mac) {
     
     printk(KERN_DEBUG "Mac pair: Entry with random MAC address not found, nothing to delete entry.\n");
 }
+
+struct sock *wmd_nl_sk = NULL;  // Define the Netlink socket here
+EXPORT_SYMBOL(wmd_nl_sk);       // Export the symbol
+
+void wmd_netlink_receive(struct sk_buff *skb) {
+    struct nlmsghdr *nlh;
+    struct sk_buff *skb_out;
+    unsigned char *raw_data;
+    unsigned char random_mac[ETH_ALEN];
+    struct mac_pair *s_entry;
+    struct mac_translation_entry *ap_entry; // Entry for station in the AP table
+
+    int res, i;
+    int data_len;
+
+    printk(KERN_DEBUG "Mac pair: Received Netlink message from user-space\n");
+
+    // Step 1: Extract the Netlink message header
+    nlh = nlmsg_hdr(skb);
+
+    if (!nlh) {
+        printk(KERN_ERR "Mac pair: Failed to extract Netlink header\n");
+        return;
+    }
+
+    // Step 2: Get the raw data from the Netlink message payload
+    raw_data = nlmsg_data(nlh);
+    data_len = nlmsg_len(nlh);
+
+    if (data_len < (8 + ETH_ALEN)) {
+        printk(KERN_ERR "Mac pair: Invalid Netlink message length: %d\n", data_len);
+        return;
+    }
+
+    // Log the raw data for debugging
+    printk(KERN_DEBUG "Mac pair: Raw data received from user-space:\n");
+    for (i = 0; i < data_len; i++) {
+        printk(KERN_DEBUG "%02x ", raw_data[i]);
+    }
+    printk(KERN_DEBUG "\n");
+
+    // Step 3: Manually offset to extract the correct MAC address (offset by 8 bytes)
+    memcpy(random_mac, raw_data + 8, ETH_ALEN);
+
+    // Log the extracted random MAC
+    printk(KERN_DEBUG "Mac pair: Extracted random MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+           random_mac[0], random_mac[1], random_mac[2],
+           random_mac[3], random_mac[4], random_mac[5]);
+
+    // Step 4: Search the MAC pair table for the associated base MAC
+    s_entry = s_search_by_random_mac(random_mac);
+    
+
+    // Allocate a new Netlink message to send the response
+    skb_out = nlmsg_new(ETH_ALEN, 0);
+    if (!skb_out) {
+        printk(KERN_ERR "Mac pair: Failed to allocate new skb\n");
+        return;
+    }
+
+    // Prepare the Netlink message
+    nlh = nlmsg_put(skb_out, 0, nlh->nlmsg_seq, NLMSG_DONE, ETH_ALEN, 0);
+    printk(KERN_DEBUG "Mac pair: Received message with seq_num: %u\n", nlh->nlmsg_seq);
+
+
+    if (!nlh) {
+        printk(KERN_ERR "Mac pair: Failed to create Netlink header for response\n");
+        kfree_skb(skb_out);
+        return;
+    }
+
+    NETLINK_CB(skb_out).dst_group = 0;  // Unicast message (i.e., send directly to wmediumd)
+
+    if (s_entry) {
+        // If a base MAC is found, copy the base MAC into the response
+        printk(KERN_DEBUG "Mac pair: Found base MAC for random MAC sending %pM\n", s_entry->s_base_mac);
+        memcpy(nlmsg_data(nlh), s_entry->s_base_mac, ETH_ALEN);  // Copy the base MAC into the message
+    } else {
+        // If no base MAC is found in the MAC pair table,
+        //search in the MAC translation table also to get the base MAC
+        ap_entry = search_by_random_mac(random_mac);
+        if (ap_entry) {
+            printk(KERN_DEBUG "AP mac pair: Found base MAC for random MAC in AP table sending %pM\n", ap_entry->base_mac);
+            memcpy(nlmsg_data(nlh), ap_entry->base_mac, ETH_ALEN);  // Copy the base MAC into the message
+        } else {
+            //send the random MAC back as is
+            printk(KERN_DEBUG "Mac pair: No base MAC found, returning original random MAC\n");
+            memcpy(nlmsg_data(nlh), random_mac, ETH_ALEN);  // Send the original random MAC back
+        }
+        
+    }
+
+    // Send the response back to wmediumd (user-space)
+    res = nlmsg_unicast(wmd_nl_sk, skb_out, NETLINK_CB(skb).portid);
+    if (res < 0) {
+        printk(KERN_ERR "Mac pair: Error while sending response to user-space: %d\n", res);
+        kfree_skb(skb_out);  // Free the skb if sending fails
+    } else {
+        printk(KERN_DEBUG "Mac pair: Response sent successfully to user-space\n");
+    }
+}
+EXPORT_SYMBOL(wmd_netlink_receive);
+
+// Function to clean up the MAC pair table
+void s_cleanup_translation_table(void) {
+    int i;
+    struct mac_pair *entry, *tmp;
+
+    printk(KERN_DEBUG "Cleaning up MAC translation table\n");
+
+    for (i = 0; i < TABLE_SIZE; ++i) {
+        entry = s_translation_table[i];
+        while (entry) {
+            tmp = entry;
+            entry = entry->next;
+            kfree(tmp);
+        }
+        s_translation_table[i] = NULL;
+    }
+}
+EXPORT_SYMBOL(s_cleanup_translation_table);

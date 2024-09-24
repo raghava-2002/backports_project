@@ -34,6 +34,7 @@
 #include <linux/rhashtable.h>
 #include <linux/nospec.h>
 #include "mac80211_hwsim.h"
+#include <net/netlink.h>
 
 //rathan files here
 #include "rathan_tables/mac_translation_table.h"
@@ -184,6 +185,12 @@ struct hwsim_vif_priv {
 	bool bcn_en;
 	u16 aid;
 };
+
+//just a defintion of functions used for creating the netlink communication between the kernel and the user space
+
+void wmd_netlink_receive(struct sk_buff *skb);
+static int __init wmd_init_netlink(void);
+static void wmd_exit_netlink(void);
 
 #define HWSIM_VIF_MAGIC	0x69537748
 
@@ -1189,18 +1196,18 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 		goto nla_put_failure;
 	// Debug: Print before calling hwsim_unicast_netgroup
 	if (debug) {
-    	printk(KERN_DEBUG "tx_frame_nl: About to call hwsim_unicast_netgroup\n");
+    	//printk(KERN_DEBUG "tx_frame_nl: About to call hwsim_unicast_netgroup\n");
 	}
 	genlmsg_end(skb, msg_head);
 	if (hwsim_unicast_netgroup(data, skb, dst_portid)){
 		if (debug) {
-			printk(KERN_DEBUG "tx_frame_nl: hwsim_unicast_netgroup failed\n");
+			//printk(KERN_DEBUG "tx_frame_nl: hwsim_unicast_netgroup failed\n");
 		}
 		goto err_free_txskb;
 	}
 	// Debug: Print after successfully sending the packet
 	if (debug) {
-    	printk(KERN_DEBUG "tx_frame_nl: Packet successfully sent to wmediumd\n");
+    	//printk(KERN_DEBUG "tx_frame_nl: Packet successfully sent to wmediumd\n");
 	}
 	/* Enqueue the packet */
 	skb_queue_tail(&data->pending, my_skb);
@@ -4101,6 +4108,26 @@ static __net_init int hwsim_init_net(struct net *net)
 	return hwsim_net_set_netgroup(net);
 }
 
+
+//this is for the netlink for wmediumd and hwsim 
+static int __init wmd_init_netlink(void)
+{
+    struct netlink_kernel_cfg cfg = {
+        .input = wmd_netlink_receive,  // Set the callback handler
+    };
+
+    printk(KERN_INFO "NETLINK user is %d\n", NETLINK_USER);
+    // Create a Netlink socket for communicating with wmediumd 
+    wmd_nl_sk = netlink_kernel_create(&init_net, NETLINK_USER, &cfg);
+    if (!wmd_nl_sk) {
+        printk(KERN_ERR "Error creating Netlink socket: %ld\n", PTR_ERR(wmd_nl_sk));
+    	return PTR_ERR(wmd_nl_sk);
+    }
+
+    printk(KERN_INFO "Netlink socket created successfully\n");
+    return 0;
+}
+
 static void __net_exit hwsim_exit_net(struct net *net)
 {
 	struct mac80211_hwsim_data *data, *tmp;
@@ -4267,6 +4294,11 @@ static int __init init_mac80211_hwsim(void)
 			goto out_free_radios;
 	}
 
+	err = wmd_init_netlink();
+    if (err < 0) {
+        goto cleanup_wmd_netlink;
+	}
+
 	hwsim_mon = alloc_netdev(0, "hwsim%d", NET_NAME_UNKNOWN,
 				 hwsim_mon_setup);
 	if (hwsim_mon == NULL) {
@@ -4290,6 +4322,8 @@ static int __init init_mac80211_hwsim(void)
 
 	return 0;
 
+cleanup_wmd_netlink:
+	wmd_exit_netlink();
 out_free_mon:
 	free_netdev(hwsim_mon);
 out_free_radios:
@@ -4306,6 +4340,15 @@ out_free_rht:
 }
 module_init(init_mac80211_hwsim);
 
+static void wmd_exit_netlink(void)
+{
+    // Release the Netlink socket
+    if (wmd_nl_sk) {
+        netlink_kernel_release(wmd_nl_sk);
+        wmd_nl_sk = NULL;
+    }
+}
+
 static void __exit exit_mac80211_hwsim(void)
 {
 	pr_debug("mac80211_hwsim: unregister radios\n");
@@ -4314,6 +4357,11 @@ static void __exit exit_mac80211_hwsim(void)
 	printk(KERN_INFO "Rathan: unregister radios for fun  chill u did it\n");
 	hwsim_exit_netlink();
 
+	//clean the tables also 
+	s_cleanup_translation_table();
+    cleanup_mac_translation_table();
+	// Release the Netlink socket
+    wmd_exit_netlink();
 	mac80211_hwsim_free();
 
 	rhashtable_destroy(&hwsim_radios_rht);

@@ -142,3 +142,21 @@ void delete_entry(const unsigned char *random_mac) {
     
     printk(KERN_DEBUG "Rathan: MAT d Entry with random MAC address not found.\n");
 }
+
+void cleanup_mac_translation_table(void) {
+    int i;
+    struct mac_translation_entry *entry, *tmp;
+
+    printk(KERN_DEBUG "Cleaning up MAC translation table\n");
+
+    for (i = 0; i < TABLE_SIZE; ++i) {
+        entry = translation_table[i];
+        while (entry) {
+            tmp = entry;
+            entry = entry->next;
+            kfree(tmp);
+        }
+        translation_table[i] = NULL;
+    }
+}
+EXPORT_SYMBOL(cleanup_mac_translation_table);
