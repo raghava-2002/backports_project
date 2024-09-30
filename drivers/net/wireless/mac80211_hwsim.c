@@ -34,6 +34,7 @@
 #include <linux/rhashtable.h>
 #include <linux/nospec.h>
 #include "mac80211_hwsim.h"
+#include <net/netlink.h>
 
 //rathan files here
 #include "rathan_tables/mac_translation_table.h"
@@ -184,6 +185,12 @@ struct hwsim_vif_priv {
 	bool bcn_en;
 	u16 aid;
 };
+
+//just a defintion of functions used for creating the netlink communication between the kernel and the user space
+
+void wmd_netlink_receive(struct sk_buff *skb);
+static int __init wmd_init_netlink(void);
+static void wmd_exit_netlink(void);
 
 #define HWSIM_VIF_MAGIC	0x69537748
 
@@ -885,6 +892,22 @@ static void mac80211_hwsim_monitor_rx(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_skb);
 	struct ieee80211_rate *txrate = ieee80211_get_tx_rate(hw, info);
 
+		//check custom packet here also 
+	//rathan work here for custom packet
+	/* __le16 fc;
+	u16 type, subtype;
+	bool custom_packet = false;
+	fc = ((struct ieee80211_hdr *)tx_skb->data)->frame_control;
+	type = (fc & IEEE80211_FCTL_FTYPE) >> 2;
+	subtype = (fc & IEEE80211_FCTL_STYPE) >> 4;
+
+	//printk(KERN_DEBUG "Packet received RX napi\n");
+	if (ieee80211_is_mgmt(fc) && subtype == 0xF) {
+		//printk(KERN_DEBUG "Driver: Custom management received on mac80211_hwsim_monitor_rx ");
+		custom_packet = true;
+	} */
+	
+
 	//LOG_FUNC;
 	if (WARN_ON(!txrate))
 		return;
@@ -1091,6 +1114,8 @@ static inline u16 trans_tx_rate_flags_ieee2hwsim(struct ieee80211_tx_rate *rate)
 	return result;
 }
 
+//this function sends packet to wmediumd for simulation of physical layer transmission (wireless medium)
+//debug htese if needed to know how the packet is transmitted make sure to print the packet for only data packets otherwise you will see lot of beacon packets
 static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 				       struct sk_buff *my_skb,
 				       int dst_portid)
@@ -1105,22 +1130,23 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 	struct hwsim_tx_rate tx_attempts[IEEE80211_TX_MAX_RATES];
 	struct hwsim_tx_rate_flag tx_attempts_flags[IEEE80211_TX_MAX_RATES];
 	uintptr_t cookie;
+	//bool debug = false;
 
 	//LOG_FUNC;
-	/* Print out frame information  Rathan  MAC addresses of the destination, source, and BSSID respectively*/
-    /*
-	printk(KERN_DEBUG "hwsim Rathan: TX frame, addr1=%pM, addr2=%pM, addr3=%pM\n",
-           hdr->addr1, hdr->addr2, hdr->addr3);
-	*/
-
-
-	// to log how packet is going to be transmitted
-	/*
-	printk(KERN_DEBUG "Transmitting packet from %pM to %pM on interface %s\n",
-		hdr->addr2, hdr->addr1, wiphy_name(hw->wiphy));
-	*/
-	// Rathan print the a line to know that the function is called
-	//printk(KERN_DEBUG "hwsim Rathan: TX frame\n");
+	/* __le16 fc;
+	u16 type, subtype;
+	//debug the custom paket here
+	//custom packet is management frame and type is IEEE80211_FTYPE_MGMT | 0x00F0
+	fc = hdr->frame_control;
+	type = (fc & IEEE80211_FCTL_FTYPE) >> 2;
+	subtype = (fc & IEEE80211_FCTL_STYPE) >> 4;
+	if (hdr->frame_control == cpu_to_le16(IEEE80211_FTYPE_MGMT | 0x00F0)) {
+		debug = true;
+		//printk(KERN_DEBUG "Custom packet came to the mac80211_hwsim_tx_frame_nl\n");
+		//printk(KERN_DEBUG "tx_frame_nl: Packet hdr SA %pM to DA %pM\n", hdr->addr2, hdr->addr1);
+		// Set custom flags for the packet
+		
+	} */
 
 
 	if (data->ps != PS_DISABLED)
@@ -1196,10 +1222,25 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 	if (nla_put_u64_64bit(skb, HWSIM_ATTR_COOKIE, cookie, HWSIM_ATTR_PAD))
 		goto nla_put_failure;
 
+	/* // Debug: Print before calling hwsim_unicast_netgroup
+	if (debug) {
+    	//printk(KERN_DEBUG "tx_frame_nl: About to call hwsim_unicast_netgroup\n");
+	} */
 	genlmsg_end(skb, msg_head);
-	if (hwsim_unicast_netgroup(data, skb, dst_portid))
+	if (hwsim_unicast_netgroup(data, skb, dst_portid)){
+		/* if (debug) {
+			printk(KERN_DEBUG "tx_frame_nl: hwsim_unicast_netgroup failed\n");
+		} */
 		goto err_free_txskb;
+	}
 
+	// Debug: Print after successfully sending the packet srija
+	/* if (debug) {
+		// print the packet details with frame control, type, and subtype
+		printk(KERN_DEBUG "tx_frame_nl: Packet hdr SA %pM to DA %pM, Frame control: 0x%x, Type: 0x%x, Subtype: 0x%x\n", hdr->addr2, hdr->addr1, le16_to_cpu(hdr->frame_control), type, subtype);
+		printk(KERN_DEBUG "tx_frame_nl: Packet cookie: %lu\n", cookie);
+		printk(KERN_DEBUG "tx_frame_nl: Packet successfully sent to wmediumd\n");
+	} */
 	/* Enqueue the packet */
 	skb_queue_tail(&data->pending, my_skb);
 	data->tx_pkts++;
@@ -1207,9 +1248,15 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 	return;
 
 nla_put_failure:
+	/* if (debug) {
+    	printk(KERN_DEBUG "tx_frame_nl: Failure\n");
+	} */
 	nlmsg_free(skb);
 err_free_txskb:
 	pr_debug("mac80211_hwsim: error occurred in %s\n", __func__);
+	/* if (debug) {
+    	printk(KERN_DEBUG "tx_frame_nl: Failed some how \n");
+	} */
 	ieee80211_free_txskb(hw, my_skb);
 	data->tx_failed++;
 }
@@ -1466,6 +1513,22 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 	u32 _portid;
 
 	//LOG_FUNC;
+
+			//check custom packet here also 
+	//rathan work here for custom packet
+	/* __le16 fc;
+	u16 type, subtype;
+	bool custom_packet = false;
+	fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
+	type = (fc & IEEE80211_FCTL_FTYPE) >> 2;
+	subtype = (fc & IEEE80211_FCTL_STYPE) >> 4;
+
+	//printk(KERN_DEBUG "Packet received RX napi\n");
+	if (ieee80211_is_mgmt(fc) && subtype == 0xF) {
+		//printk(KERN_DEBUG "Driver: Custom management received on mac80211_hwsim_tx ");
+		custom_packet = true;
+	} */
+	
 	
 	/* Rathan wrote these lines to know from where to where the packet is transfering in the physical layer */
 	//printk(KERN_DEBUG "Transmitting packet from %pM to %pM on interface %s\n", hdr->addr2, hdr->addr1, wiphy_name(hw->wiphy));
@@ -1490,6 +1553,9 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 
 	if (WARN_ON(skb->len < 10)) {
 		/* Should not happen; just a sanity check for addr1 use */
+		/* if(custom_packet){
+			printk(KERN_DEBUG "Driver: Custom management packet is too short droping \n");
+		} */
 		ieee80211_free_txskb(hw, skb);
 		return;
 	}
@@ -1648,6 +1714,21 @@ static void mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 	u32 _pid = READ_ONCE(data->wmediumd);
 
 	//LOG_FUNC;
+				//check custom packet here also 
+	//rathan work here for custom packet
+	/* __le16 fc;
+	u16 type, subtype;
+	bool custom_packet = false;
+	fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
+	type = (fc & IEEE80211_FCTL_FTYPE) >> 2;
+	subtype = (fc & IEEE80211_FCTL_STYPE) >> 4;
+
+	//printk(KERN_DEBUG "Packet received RX napi\n");
+	if (ieee80211_is_mgmt(fc) && subtype == 0xF) {
+		printk(KERN_DEBUG "Driver: Custom management received on mac80211_hwsim_tx_frame ");
+		custom_packet = true;
+	} */
+	
 	if (ieee80211_hw_check(hw, SUPPORTS_RC_TABLE)) {
 		struct ieee80211_tx_info *txi = IEEE80211_SKB_CB(skb);
 		ieee80211_get_tx_rates(txi->control.vif, NULL, skb,
@@ -3419,6 +3500,7 @@ static void hwsim_register_wmediumd(struct net *net, u32 portid)
 	spin_unlock_bh(&hwsim_radio_lock);
 }
 
+//This function is called when the packet is received from the user space (wmediumd or other)
 static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 					   struct genl_info *info)
 {
@@ -3434,6 +3516,12 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 	int i;
 	bool found = false;
 
+	//check custom packet here also 
+	//rathan work here for custom packet srija
+	/* __le16 fc;
+	u16 type, subtype;
+	bool custom_packet = false; */
+	
 	//LOG_FUNC;
 	if (!info->attrs[HWSIM_ATTR_ADDR_TRANSMITTER] ||
 	    !info->attrs[HWSIM_ATTR_FLAGS] ||
@@ -3462,7 +3550,7 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 
 		txi = IEEE80211_SKB_CB(skb);
 		skb_cookie = (u64)(uintptr_t)txi->rate_driver_data[0];
-
+		//printk(KERN_DEBUG "comparing skb_cookie %llu ret_skb_cookie %llu\n", skb_cookie, ret_skb_cookie);
 		if (skb_cookie == ret_skb_cookie) {
 			skb_unlink(skb, &data2->pending);
 			found = true;
@@ -3483,6 +3571,15 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 	/* now send back TX status */
 	txi = IEEE80211_SKB_CB(skb);
 
+	/* fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
+	type = (fc & IEEE80211_FCTL_FTYPE) >> 2;
+	subtype = (fc & IEEE80211_FCTL_STYPE) >> 4;
+	if (ieee80211_is_mgmt(fc) && subtype == 0xF) {
+		printk(KERN_DEBUG "DA %pM SA %pM type %u subtype %u\n", ((struct ieee80211_hdr *)skb->data)->addr1, ((struct ieee80211_hdr *)skb->data)->addr2, type, subtype);
+		printk(KERN_DEBUG "HELLO GUYS: Custom management packet received properly from the wmediumd\n");
+		custom_packet = true;
+	} */
+
 	ieee80211_tx_info_clear_status(txi);
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
@@ -3495,8 +3592,8 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 	//KEYWORD TO SEARCH: SRIJA
 	// import the table here and send the ack
 	//printk(KERN_DEBUG "Rathan nl: Acknowledgement work should be done here\n");
-	print_mac_pair_table();
-	print_mac_translation_table();
+	//print_mac_pair_table();
+	//print_mac_translation_table();
 
 	if (!(hwsim_flags & HWSIM_TX_CTL_NO_ACK) &&
 	   (hwsim_flags & HWSIM_TX_STAT_ACK)) {
@@ -3507,7 +3604,13 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 		}
 		txi->flags |= IEEE80211_TX_STAT_ACK;
 	}
+
+	
 	ieee80211_tx_status_irqsafe(data2->hw, skb);
+	/* if (custom_packet) {
+		printk(KERN_DEBUG "DA %pM SA %pM type %u subtype %u cookie %llu \n", ((struct ieee80211_hdr *)skb->data)->addr1, ((struct ieee80211_hdr *)skb->data)->addr2, type, subtype, ret_skb_cookie);
+		printk(KERN_DEBUG "CHILL : Custom management packet send to stack properly\n");
+	} */
 	return 0;
 out:
 	return -EINVAL;
@@ -3525,6 +3628,20 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 	void *frame_data;
 	struct sk_buff *skb = NULL;
 
+	//rathan work here for custom packet
+	/* __le16 fc;
+	u16 type, subtype;
+	bool custom_packet = false;
+	fc = ((struct ieee80211_hdr *)skb_2->data)->frame_control;
+	type = (fc & IEEE80211_FCTL_FTYPE) >> 2;
+	subtype = (fc & IEEE80211_FCTL_STYPE) >> 4;
+	//printk(KERN_DEBUG "clone first: DA %pM SA %pM type %u subtype %u\n", ((struct ieee80211_hdr *)skb_2->data)->addr1, ((struct ieee80211_hdr *)skb_2->data)->addr2, type, subtype);
+	//printk(KERN_DEBUG "Packet received RX napi\n");
+	here you couldn't get the subtype and type of the packet because the packet is modified by the user space
+	if (ieee80211_is_mgmt(fc) && subtype == 0xF) {
+		printk(KERN_DEBUG "Driver: Custom management ");
+		//custom_packet = true;
+	} */
 	//LOG_FUNC;
 	if (!info->attrs[HWSIM_ATTR_ADDR_RECEIVER] ||
 	    !info->attrs[HWSIM_ATTR_FRAME] ||
@@ -3547,6 +3664,17 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 	/* Copy the data */
 	skb_put_data(skb, frame_data, frame_data_len);
 
+	/* fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
+	type = (fc & IEEE80211_FCTL_FTYPE) >> 2;
+	subtype = (fc & IEEE80211_FCTL_STYPE) >> 4;
+
+	//printk(KERN_DEBUG "clone middle: DA %pM SA %pM type %u subtype %u\n", ((struct ieee80211_hdr *)skb->data)->addr1, ((struct ieee80211_hdr *)skb->data)->addr2, type, subtype);
+	//printk(KERN_DEBUG "clone middle: dest %pM\n", dst);
+	if (ieee80211_is_mgmt(fc) && subtype == 0xF) {
+		printk(KERN_DEBUG "Clone : Custom management packet received and trying to send to stack\n");
+		custom_packet = true;
+	} */
+
 	data2 = get_hwsim_data_ref_from_addr(dst);
 	if (!data2)
 		goto out;
@@ -3558,7 +3686,7 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 		goto out;
 
 	/* check if radio is configured properly */
-
+	//printk(KERN_DEBUG "clone: %pM\n", data2->hw->wiphy->perm_addr);
 	if (data2->idle || !data2->started)
 		goto out;
 
@@ -3596,6 +3724,14 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
 	data2->rx_pkts++;
 	data2->rx_bytes += skb->len;
+	/* fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
+	type = (fc & IEEE80211_FCTL_FTYPE) >> 2;
+	subtype = (fc & IEEE80211_FCTL_STYPE) >> 4;
+	if (custom_packet) {
+		printk(KERN_DEBUG "clone: Custom management packet sent to the stack\n");
+	} */
+	//printk(KERN_DEBUG "clone end: SA %pM DA %pM type %u subtype %u\n", hdr->addr2, hdr->addr1, type, subtype);
+	//printk(KERN_DEBUG "cloned: %pM\n", data2->hw->wiphy->perm_addr);
 	ieee80211_rx_irqsafe(data2->hw, skb);
 
 	return 0;
@@ -3603,6 +3739,7 @@ err:
 	pr_debug("mac80211_hwsim: error occurred in %s\n", __func__);
 out:
 	dev_kfree_skb(skb);
+	//printk(KERN_DEBUG "Driver: Custom management packet received but not properly dropped somewhere\n");
 	return -EINVAL;
 }
 
@@ -3613,6 +3750,7 @@ static int hwsim_register_received_nl(struct sk_buff *skb_2,
 	struct mac80211_hwsim_data *data;
 	int chans = 1;
 
+	//printk(KERN_DEBUG "hw register");
 	//LOG_FUNC;
 	spin_lock_bh(&hwsim_radio_lock);
 	list_for_each_entry(data, &hwsim_radios, list)
@@ -4065,6 +4203,23 @@ static __net_init int hwsim_init_net(struct net *net)
 	return hwsim_net_set_netgroup(net);
 }
 
+//this is for the netlink communication between wmediumd and hwsim 
+static int __init wmd_init_netlink(void)
+{
+    struct netlink_kernel_cfg cfg = {
+        .input = wmd_netlink_receive,  // Set the callback handler
+    };
+    printk(KERN_INFO "NETLINK user is %d\n", NETLINK_USER);
+    // Create a Netlink socket for communicating with wmediumd 
+    wmd_nl_sk = netlink_kernel_create(&init_net, NETLINK_USER, &cfg);
+    if (!wmd_nl_sk) {
+        printk(KERN_ERR "Error creating Netlink socket: %ld\n", PTR_ERR(wmd_nl_sk));
+    	return PTR_ERR(wmd_nl_sk);
+    }
+    printk(KERN_INFO "Netlink socket created successfully\n");
+    return 0;
+}
+
 static void __net_exit hwsim_exit_net(struct net *net)
 {
 	struct mac80211_hwsim_data *data, *tmp;
@@ -4231,6 +4386,11 @@ static int __init init_mac80211_hwsim(void)
 			goto out_free_radios;
 	}
 
+	err = wmd_init_netlink();
+    if (err < 0) {
+        goto cleanup_wmd_netlink;
+	}
+
 	hwsim_mon = alloc_netdev(0, "hwsim%d", NET_NAME_UNKNOWN,
 				 hwsim_mon_setup);
 	if (hwsim_mon == NULL) {
@@ -4254,6 +4414,8 @@ static int __init init_mac80211_hwsim(void)
 
 	return 0;
 
+cleanup_wmd_netlink:
+	wmd_exit_netlink();
 out_free_mon:
 	free_netdev(hwsim_mon);
 out_free_radios:
@@ -4270,6 +4432,15 @@ out_free_rht:
 }
 module_init(init_mac80211_hwsim);
 
+static void wmd_exit_netlink(void)
+{
+    // Release the Netlink socket
+    if (wmd_nl_sk) {
+        netlink_kernel_release(wmd_nl_sk);
+        wmd_nl_sk = NULL;
+    }
+}
+
 static void __exit exit_mac80211_hwsim(void)
 {
 	pr_debug("mac80211_hwsim: unregister radios\n");
@@ -4277,6 +4448,12 @@ static void __exit exit_mac80211_hwsim(void)
 	// first time Rathan added this line to print on kernal
 	printk(KERN_INFO "Rathan: unregister radios for fun  chill u did it\n");
 	hwsim_exit_netlink();
+
+	//clean the tables also 
+	s_cleanup_translation_table();
+    cleanup_mac_translation_table();
+	// Release the Netlink socket
+    wmd_exit_netlink();
 
 	mac80211_hwsim_free();
 

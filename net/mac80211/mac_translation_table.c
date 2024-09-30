@@ -145,3 +145,20 @@ void delete_entry(const unsigned char *base_mac) {
 
     printk(KERN_DEBUG "MAT d Entry with base MAC %pM not found in the table during deletion.\n", base_mac);
 }
+
+
+void cleanup_mac_translation_table(void) {
+    int i;
+    struct mac_translation_entry *entry, *tmp;
+    printk(KERN_DEBUG "Cleaning up MAC translation table\n");
+    for (i = 0; i < TABLE_SIZE; ++i) {
+        entry = translation_table[i];
+        while (entry) {
+            tmp = entry;
+            entry = entry->next;
+            kfree(tmp);
+        }
+        translation_table[i] = NULL;
+    }
+}
+EXPORT_SYMBOL(cleanup_mac_translation_table);

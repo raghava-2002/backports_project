@@ -418,6 +418,22 @@ struct sk_buff *construct_custom_packet(struct ieee80211_vif *vif, long long int
     int payload_len = sizeof(payload_data);
     int total_len = hdr_len + payload_len;
     u8 *payload; //pointer to the payload
+    struct ieee80211_tx_info *info;
+    struct ieee80211_sub_if_data *sdata = NULL;
+	enum nl80211_band band;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+    struct ieee80211_tx_rate_control txrc;
+    struct ieee80211_hw *hw;
+    struct ieee80211_local *local;
+
+    
+
+    sdata = vif_to_sdata(vif);
+
+    // Access the hw structure from sdata
+    hw = &sdata->local->hw;
+    local = hw_to_local(hw);
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 
     //Allocate a new skb for the custom packet 
     custom_skb = dev_alloc_skb(total_len);
@@ -452,6 +468,29 @@ struct sk_buff *construct_custom_packet(struct ieee80211_vif *vif, long long int
     memcpy(hdr->addr2, vif->addr, ETH_ALEN);           // Source address (AP address)
     memcpy(hdr->addr3, vif->addr, ETH_ALEN);           // BSSID (AP address)
 
+    band = chanctx_conf->def.chan->band;
+    // Set flags in ieee80211_tx_info
+    info = IEEE80211_SKB_CB(custom_skb);
+    info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	info->flags |= IEEE80211_TX_CTL_NO_ACK;
+	info->band = band;
+
+    memset(&txrc, 0, sizeof(txrc));
+	txrc.hw = hw;
+	txrc.sband = local->hw.wiphy->bands[band];
+	txrc.bss_conf = &sdata->vif.bss_conf;
+	txrc.skb = custom_skb;
+	txrc.reported_rate.idx = -1;
+	txrc.rate_idx_mask = sdata->rc_rateidx_mask[band];
+	txrc.bss = true;
+	rate_control_get_rate(sdata, NULL, &txrc);
+
+	info->control.vif = vif;
+
+	info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT |
+			IEEE80211_TX_CTL_ASSIGN_SEQ |
+			IEEE80211_TX_CTL_FIRST_FRAGMENT;
+    //printk(KERN_DEBUG "Custom packet Flags are set\n");
     return custom_skb;
 
 }
