@@ -1109,7 +1109,7 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 
 	//LOG_FUNC;
 	if (!(ieee80211_is_beacon(hdr->frame_control))) {
-        printk(KERN_DEBUG "tx_frame_nl: Packet hdr SA %pM to DA %pM\n", hdr->addr2, hdr->addr1);
+        //printk(KERN_DEBUG "tx_frame_nl: Packet hdr SA %pM to DA %pM\n", hdr->addr2, hdr->addr1);
 		debug = true;
     }
 
@@ -1189,18 +1189,18 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 		goto nla_put_failure;
 	// Debug: Print before calling hwsim_unicast_netgroup
 	if (debug) {
-    	printk(KERN_DEBUG "tx_frame_nl: About to call hwsim_unicast_netgroup\n");
+    	//printk(KERN_DEBUG "tx_frame_nl: About to call hwsim_unicast_netgroup\n");
 	}
 	genlmsg_end(skb, msg_head);
 	if (hwsim_unicast_netgroup(data, skb, dst_portid)){
 		if (debug) {
-			printk(KERN_DEBUG "tx_frame_nl: hwsim_unicast_netgroup failed\n");
+			//printk(KERN_DEBUG "tx_frame_nl: hwsim_unicast_netgroup failed\n");
 		}
 		goto err_free_txskb;
 	}
 	// Debug: Print after successfully sending the packet
 	if (debug) {
-    	printk(KERN_DEBUG "tx_frame_nl: Packet successfully sent to wmediumd\n");
+    	//printk(KERN_DEBUG "tx_frame_nl: Packet successfully sent to wmediumd\n");
 	}
 	/* Enqueue the packet */
 	skb_queue_tail(&data->pending, my_skb);
@@ -3539,7 +3539,7 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 			hdr = (struct ieee80211_hdr *) skb->data;
 			mac80211_hwsim_monitor_ack(data2->channel,
 						   hdr->addr2);
-			printk(KERN_DEBUG "Rathan nl: Acknowledgement is sent from %pM to %pM\n", hdr->addr2, hdr->addr1);
+			//printk(KERN_DEBUG "Rathan nl: Acknowledgement is sent from %pM to %pM\n", hdr->addr2, hdr->addr1);
 		}
 		txi->flags |= IEEE80211_TX_STAT_ACK;
 	}
