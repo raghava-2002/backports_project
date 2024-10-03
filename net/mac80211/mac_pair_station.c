@@ -159,7 +159,7 @@ void wmd_netlink_receive(struct sk_buff *skb) {
     int res;
     //int i;
     int data_len;
-    printk(KERN_DEBUG "Mac pair: Received Netlink message from user-space\n");
+    //printk(KERN_DEBUG "Mac pair: Received Netlink message from user-space\n");
     // Step 1: Extract the Netlink message header
     nlh = nlmsg_hdr(skb);
     if (!nlh) {
@@ -225,7 +225,7 @@ void wmd_netlink_receive(struct sk_buff *skb) {
         printk(KERN_ERR "Mac pair: Error while sending response to user-space: %d\n", res);
         kfree_skb(skb_out);  // Free the skb if sending fails
     } else {
-        printk(KERN_DEBUG "Mac pair: Response sent successfully to user-space\n");
+        //printk(KERN_DEBUG "Mac pair: Response sent successfully to user-space\n");
     }
 }
 EXPORT_SYMBOL(wmd_netlink_receive);
