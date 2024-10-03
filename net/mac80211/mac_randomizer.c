@@ -297,6 +297,7 @@ void mac_addr_change_hdr_rx (struct ieee80211_local *local, struct ieee80211_hdr
 	struct mac_translation_entry *entry;
     struct ieee80211_sub_if_data *sdata_instance;
     long long int current_tp;
+    struct sta_info *sta;
 
     current_tp = (ktime_get_real_seconds()/RND_TP);
     
@@ -314,6 +315,20 @@ void mac_addr_change_hdr_rx (struct ieee80211_local *local, struct ieee80211_hdr
 				
 				
 				//printk(KERN_DEBUG "sta RX skb: seq number %u\n", le16_to_cpu(hdr->seq_ctrl) >> 4);
+                sta = local_to_sta_info(local);
+                if (sta){
+                    //printk(KERN_DEBUG "sta RX: extra load here");
+                    if ((current_tp != (sta->start_time_period))) {
+                        //printk(KERN_DEBUG "Station case3 tx.c");
+                        generate_mac_add_sta(sta, current_tp);
+                        //generate_mac_add_sta(local, current_tp);
+                        //printk(KERN_DEBUG "Rathan: curr %lld inter %lld", current_tp, sta->start_time_period);
+                        sta->start_time_period = current_tp;    
+                        //printk(KERN_DEBUG "sta RX: extra load sucess here ");         
+                    }
+                }
+                
+
 
 				s_entry = s_search_by_random_mac(hdr->addr1);
 				if (s_entry) {
