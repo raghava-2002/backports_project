@@ -468,11 +468,17 @@ struct sk_buff *construct_custom_packet(struct ieee80211_vif *vif, long long int
     memcpy(hdr->addr2, vif->addr, ETH_ALEN);           // Source address (AP address)
     memcpy(hdr->addr3, vif->addr, ETH_ALEN);           // BSSID (AP address)
 
+    // Set the frame control field (if needed)
+    hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_QOS_DATA); // QoS Data Frame
+
     band = chanctx_conf->def.chan->band;
     // Set flags in ieee80211_tx_info
     info = IEEE80211_SKB_CB(custom_skb);
     info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 	info->flags |= IEEE80211_TX_CTL_NO_ACK;
+    info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT;       
+    custom_skb->priority = 7;
+    info->hw_queue = IEEE80211_AC_VO;        // Voice queue 
 	info->band = band;
 
     memset(&txrc, 0, sizeof(txrc));

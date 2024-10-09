@@ -260,6 +260,8 @@ void generate_mac_add_sta(struct sta_info *sta, long long int current_tp) {
         // Update the MAC pair table (update if entry exists or insert new entry for the new station)
         s_update_entry_by_base(interface_mac_addr, r_mac); 
     } else {
+        memcpy(r_mac, interface_mac_addr, ETH_ALEN);  // Use 00:00:00:00:00:00 as the base MAC address
+        s_update_entry_by_base(interface_mac_addr, r_mac);
         printk(KERN_DEBUG "Rathan: key is null ");
     }
     rcu_read_unlock();

@@ -142,8 +142,33 @@ void s_delete_entry(const unsigned char *s_base_mac) {
         }
     }
 
+    //check for random mac address also in the table if yes delete it
+    for (index = 0; index < s_TABLE_SIZE; ++index) {
+        struct mac_pair *cur = s_translation_table[index];
+        prev_entry = NULL; // Reset prev_entry for each bucket
+        while (cur != NULL) {
+            if (memcmp(cur->s_random_mac, s_base_mac, ETH_ALEN) == 0) {
+                // Found the entry, now delete it
+                if (prev_entry == NULL) {
+                    // Entry is the first node in the linked list
+                    s_translation_table[index] = cur->next;
+                } else {
+                    // Entry is not the first node, update the previous node's next pointer
+                    prev_entry->next = cur->next;
+                }
+                
+                //printk(KERN_DEBUG "Rathan: MAT d Entry with base MAC %pM deleted.\n", base_mac);
+                kfree(cur); // Free the memory allocated for the entry
+                //print_mac_pair_table(); // Print updated table
+                return;
+            }
+            prev_entry = cur;
+            cur = cur->next;
+        }
+    }
+
     printk(KERN_DEBUG "MAT d Entry with base MAC %pM not found in the table during deletion.\n", s_base_mac);
-    //print_mac_pair_table();
+    print_mac_pair_table();
 
 }
 struct sock *wmd_nl_sk = NULL;  // Define the Netlink socket here

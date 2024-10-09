@@ -143,7 +143,33 @@ void delete_entry(const unsigned char *base_mac) {
         }
     }
 
+    //check for the random mac address also in the table if yes delete it
+    for (index = 0; index < TABLE_SIZE; ++index) {
+        struct mac_translation_entry *cur = translation_table[index];
+        prev_entry = NULL; // Reset prev_entry for each bucket
+        while (cur != NULL) {
+            if (memcmp(cur->random_mac, base_mac, ETH_ALEN) == 0) {
+                // Found the entry, now delete it
+                if (prev_entry == NULL) {
+                    // Entry is the first node in the linked list
+                    translation_table[index] = cur->next;
+                } else {
+                    // Entry is not the first node, update the previous node's next pointer
+                    prev_entry->next = cur->next;
+                }
+                
+                //printk(KERN_DEBUG "Rathan: MAT d Entry with base MAC %pM deleted.\n", base_mac);
+                kfree(cur); // Free the memory allocated for the entry
+                //print_mac_translation_table(); // Print updated table
+                return;
+            }
+            prev_entry = cur;
+            cur = cur->next;
+        }
+    }
+
     printk(KERN_DEBUG "MAT d Entry with base MAC %pM not found in the table during deletion.\n", base_mac);
+    print_mac_translation_table(); // Print updated table
 }
 
 
