@@ -1707,6 +1707,7 @@ ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
 					       GFP_ATOMIC))
 			return RX_DROP_UNUSABLE;
 
+		printk(KERN_DEBUG "rx: dropping addr1 %pM\n", hdr->addr1);
 		return RX_DROP_MONITOR;
 	}
 

@@ -29,8 +29,9 @@ void insert_entry(const unsigned char *base_mac, const unsigned char *random_mac
         // Handle memory allocation failure
         return;
     }
-    memcpy(new_entry->base_mac, base_mac, ETH_ALEN);
-    memcpy(new_entry->random_mac, random_mac, ETH_ALEN);
+    memcpy(new_entry->base_mac, base_mac, ETH_ALEN); // Copy the base MAC address
+    memcpy(new_entry->random_mac, random_mac, ETH_ALEN); // Copy the random MAC address
+    memcpy(new_entry->old_random_mac, random_mac, ETH_ALEN); // it was first entry so old random mac is same as random mac
     new_entry->next = translation_table[index];
     translation_table[index] = new_entry;
 }
@@ -39,6 +40,7 @@ void update_entry_by_base(const unsigned char *base_mac, const unsigned char *ne
     struct mac_translation_entry *entry = search_by_base_mac(base_mac);
     if (entry != NULL) {
         // Entry with the specified base MAC address found, update its random MAC address
+        memcpy(entry->old_random_mac, entry->random_mac, ETH_ALEN); //store the old random mac address (from old time period)
         memcpy(entry->random_mac, new_random_mac, ETH_ALEN);
     } else {
         //printk(KERN_DEBUG "Rathan: MAT b Entry with base MAC address not found.\n");
@@ -49,6 +51,7 @@ void update_entry_by_base(const unsigned char *base_mac, const unsigned char *ne
     }
 }
 
+//usually we donot use this function
 void update_entry_by_random(const unsigned char *random_mac, const unsigned char *new_base_mac) {
     struct mac_translation_entry *entry = search_by_random_mac(random_mac);
     if (entry != NULL) {
@@ -74,6 +77,18 @@ struct mac_translation_entry *search_by_random_mac(const unsigned char *random_m
         }
     }
 
+    //search for the old random mac address also just in case for race condition when the packet is received in the next time period from the previous time period
+    for (index = 0; index < TABLE_SIZE; ++index) {
+        struct mac_translation_entry *entry = translation_table[index];
+        while (entry != NULL) {
+            if (memcmp(entry->old_random_mac, random_mac, ETH_ALEN) == 0) {
+                // Found the entry with the specified base MAC address
+                printk(KERN_DEBUG "AP table: using old mac adddress\n");
+                return entry;
+            }
+            entry = entry->next;
+        }
+    }
     // Entry with the specified base MAC address not found
     return NULL;
 }
@@ -105,7 +120,7 @@ void print_mac_translation_table(void) {
     for (i = 0; i < TABLE_SIZE; ++i) {
         struct mac_translation_entry *entry = translation_table[i];
         while (entry != NULL) {
-            printk(KERN_DEBUG "Rathan: Base MAC: %pM, Random MAC: %pM\n", entry->base_mac, entry->random_mac);
+            printk(KERN_DEBUG "Rathan: Base MAC: %pM, Random MAC: %pM, old Random MAC: %pM\n", entry->base_mac, entry->random_mac, entry->old_random_mac);
             entry = entry->next;
         }
     }

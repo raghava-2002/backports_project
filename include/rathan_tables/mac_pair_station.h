@@ -9,6 +9,7 @@
 struct mac_pair {
     unsigned char s_base_mac[ETH_ALEN];
     unsigned char s_random_mac[ETH_ALEN];
+    unsigned char s_old_random_mac[ETH_ALEN];
     struct mac_pair *next;
 };
 

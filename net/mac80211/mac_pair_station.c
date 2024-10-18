@@ -33,6 +33,7 @@ void s_insert_entry(const unsigned char *base_mac, const unsigned char *random_m
     }
     memcpy(new_entry->s_base_mac, base_mac, ETH_ALEN);
     memcpy(new_entry->s_random_mac, random_mac, ETH_ALEN);
+    memcpy(new_entry->s_old_random_mac, random_mac, ETH_ALEN); // it was first entry so old random mac is same as random mac
     //printk(KERN_DEBUG "Mac pair: Inserting entry with base MAC: %pM, random MAC: %pM\n", new_entry->s_base_mac, new_entry->s_random_mac);
     new_entry->next = s_translation_table[index];
     s_translation_table[index] = new_entry;
@@ -42,6 +43,7 @@ void s_update_entry_by_base(const unsigned char *base_mac, const unsigned char *
     struct mac_pair *entry = s_search_by_base_mac(base_mac);
     if (entry != NULL) {
         // Entry with the specified base MAC address found, update its random MAC address
+        memcpy(entry->s_old_random_mac, entry->s_random_mac, ETH_ALEN); //store the old random mac address (from old time period)
         memcpy(entry->s_random_mac, new_random_mac, ETH_ALEN);
     } else {
         s_insert_entry(base_mac, new_random_mac);
@@ -49,6 +51,7 @@ void s_update_entry_by_base(const unsigned char *base_mac, const unsigned char *
     }
 }
 
+//usually we donot use this function
 void s_update_entry_by_random(const unsigned char *random_mac, const unsigned char *new_base_mac) {
     struct mac_pair *entry = s_search_by_random_mac(random_mac);
     if (entry != NULL) {
@@ -68,6 +71,19 @@ struct mac_pair *s_search_by_random_mac(const unsigned char *random_mac) {
         while (entry != NULL) {
             if (memcmp(entry->s_random_mac, random_mac, ETH_ALEN) == 0) {
                 // Found the entry with the specified base MAC address
+                return entry;
+            }
+            entry = entry->next;
+        }
+    }
+
+    //search for old random mac address just in case for race condition when the packet is received in the next time period from the previous time period
+    for (index = 0; index < s_TABLE_SIZE; ++index) {
+        struct mac_pair *entry = s_translation_table[index];
+        while (entry != NULL) {
+            if (memcmp(entry->s_old_random_mac, random_mac, ETH_ALEN) == 0) {
+                // Found the entry with the specified base MAC address
+                printk(KERN_DEBUG "station table: using old pair\n");
                 return entry;
             }
             entry = entry->next;
@@ -105,7 +121,7 @@ void print_mac_pair_table(void) {
     for (i = 0; i < s_TABLE_SIZE; ++i) {
         struct mac_pair *entry = s_translation_table[i];
         while (entry != NULL) {
-            printk(KERN_DEBUG "Base MAC: %pM, Random MAC: %pM\n", entry->s_base_mac, entry->s_random_mac);
+            printk(KERN_DEBUG "Base MAC: %pM, Random MAC: %pM, old Random MAC: %pM\n", entry->s_base_mac, entry->s_random_mac, entry->s_old_random_mac);
             entry = entry->next;
         }
     }

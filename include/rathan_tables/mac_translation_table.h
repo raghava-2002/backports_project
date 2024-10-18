@@ -7,6 +7,7 @@
 struct mac_translation_entry {
     unsigned char base_mac[ETH_ALEN];
     unsigned char random_mac[ETH_ALEN];
+    unsigned char old_random_mac[ETH_ALEN];
     struct mac_translation_entry *next;
 };
 
