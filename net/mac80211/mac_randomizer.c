@@ -12,10 +12,10 @@
 bool RND_MAC = true;    // Enable random MAC address generation logic 
 
 //enable random mac address generation by kernal time interval  
-bool RND_KERN = false;
+bool RND_KERN = true;
 
 //enable random mac address generation by AP intiated triggers
-bool RND_AP = true;
+bool RND_AP = false;
 
 int packet_count = 0; //packet count for the AP initiated trigger
 int no_of_custom_packets = 3; //no of packets to be sent by the AP to trigger the random mac address generation
@@ -316,11 +316,19 @@ void mac_addr_change_hdr_rx (struct ieee80211_local *local, struct ieee80211_hdr
 				//printk(KERN_INFO "The instance is a STA (Station)\n");
 				//printk(KERN_DEBUG "Instance mac: %pM\n", instance_mac);
 				test_sta = local_to_sta_info(local);
-                /* if (test_sta){
-                    printk(KERN_DEBUG "STA RX: %lld\n", test_sta->start_time_period);
-                }else{
-                    printk(KERN_DEBUG "STA RX: sta is null\n");
-                } */
+
+                if (test_sta && RND_KERN) {
+                    current_tp = (ktime_get_real_seconds()/RND_TP);
+                    //printk(KERN_DEBUG "sta RX: extra load here");
+                    if ((current_tp != (test_sta->start_time_period))) {
+                        //printk(KERN_DEBUG "Station case3 tx.c");
+                        generate_mac_add_sta(test_sta, current_tp);
+                        //generate_mac_add_sta(local, current_tp);
+                        //printk(KERN_DEBUG "Rathan: curr %lld inter %lld", current_tp, sta->start_time_period);
+                        test_sta->start_time_period = current_tp;    
+                        //printk(KERN_DEBUG "sta RX: extra load sucess here ");         
+                    }
+                }
 				
 				//printk(KERN_DEBUG "sta RX skb: seq number %u\n", le16_to_cpu(hdr->seq_ctrl) >> 4);
 
