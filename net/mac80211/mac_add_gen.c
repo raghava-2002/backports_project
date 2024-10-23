@@ -47,7 +47,7 @@ void generate_mac_add_ap_all(struct ieee80211_local *local, long long int curren
     struct crypto_shash *shash;
     struct shash_desc *shash_desc;
     struct ieee80211_key *key, *g_key;
-    unsigned char hash[20];  // Buffer for the hash
+    unsigned char hash[32];  // 32 bytes for sha256 hash 20 bytes for sha1 hash
     char *data;
     int total_size = ETH_ALEN + 16 + sizeof(current_tp);
     bool gen; // Flag is used in case of no PTK for station but it is authorized (in between sending key to the packets to the station) 
@@ -61,7 +61,8 @@ void generate_mac_add_ap_all(struct ieee80211_local *local, long long int curren
     }
 
     // Initialize the crypto hash
-    shash = crypto_alloc_shash("sha1", 0, 0);
+    shash = crypto_alloc_shash("sha256", 0, 0);
+    //printk(KERN_DEBUG "SHA256 is using for the random mac address generation");
     if (IS_ERR(shash)) {
         printk(KERN_ERR "Failed to allocate crypto hash\n");
         kfree(data);
@@ -167,7 +168,7 @@ void generate_mac_add_sta(struct sta_info *sta, long long int current_tp) {
     struct shash_desc *shash_desc;
     struct ieee80211_key *key;
     //struct ieee80211_key *g_key;
-    unsigned char hash[20];  // Buffer for the hash
+    unsigned char hash[32];  //  32 bytes for sha256 hash 20 bytes for sha1 hash
     char *data;
     int total_size = ETH_ALEN + 16 + sizeof(current_tp);
     const u8 *interface_mac_addr;
@@ -189,7 +190,7 @@ void generate_mac_add_sta(struct sta_info *sta, long long int current_tp) {
     }
 
     // Initialize the crypto hash
-    shash = crypto_alloc_shash("sha1", 0, 0);
+    shash = crypto_alloc_shash("sha256", 0, 0);
     if (IS_ERR(shash)) {
         printk(KERN_ERR "Failed to allocate crypto hash\n");
         kfree(data);
