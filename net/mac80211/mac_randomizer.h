@@ -54,6 +54,10 @@ struct custom_packet_payload {
 //Incase of AP intiated trigger based random mac address generation this is used only in the AP case
 #define RND_TP 15
 
+//this variable is used to keep track of the time period for the AP initiated trigger 
+//used for the pn generation for the AP initiated trigger based random mac address generation, upadted by AP when sending custom packet, updated by station when receiving custom packet
+extern u8 rnd_mac_validity_period; // Time period for MAC validity in seconds
+
 void handle_random_mac(struct ieee80211_tx_data *tx);
 void mac_addr_change_hdr_tx(struct sk_buff_head *skbs, struct ieee80211_vif *vif);
 void mac_addr_change_hdr_rx (struct ieee80211_local *local, struct ieee80211_hdr *hdr);

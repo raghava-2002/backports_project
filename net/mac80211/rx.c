@@ -4709,6 +4709,9 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		// Extract and log the MAC generation seed
         //printk(KERN_DEBUG "Received custom packet with MAC generation seed: %llu\n", payload_data->mac_generation_seed);
 
+		//since mac_validity is not hardcoded, rnd_mac_validity_period updated from the custom packet, it is used in pn generation
+		rnd_mac_validity_period = payload_data->mac_validity_period;
+
         // Log the message
         //printk(KERN_DEBUG "Received custom message: %s\n", payload_data->message);
 

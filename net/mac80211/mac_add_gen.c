@@ -279,11 +279,19 @@ void generate_mac_add_sta(struct sta_info *sta, long long int current_tp) {
 
 
 static inline int calculate_l(int bitrate, int avg_frame_size) {
-    // Bitrate * RND_TP / avg_frame_size is an integer division
-    int result = bitrate * RND_TP / avg_frame_size;
+
+    int result;
+    int log_result = 0;
+    if(RND_KERN){
+        // Bitrate * RND_TP / avg_frame_size is an integer division
+        result = bitrate * RND_TP / avg_frame_size;
+    }
+    
+    if(RND_AP){
+        result = bitrate * rnd_mac_validity_period / avg_frame_size;
+    }
     
     // Calculate log2 using bitwise operation
-    int log_result = 0;
     while (result >>= 1) log_result++;
     
     // Add 1 to simulate the ceiling function
@@ -302,6 +310,7 @@ u64 generate_pn(long long int seed) {
     int l, h;
     int bitrate = 94000; // Example bitrate in kbps
     int avg_frame_size = 1500; // Example average frame size in bytes
+    long long int t_epoch; // used for the time period for the AP initiated trigger since seed is random for the AP initiated trigger
     
     // Calculate l and h
     l = calculate_l(bitrate, avg_frame_size);
@@ -309,6 +318,24 @@ u64 generate_pn(long long int seed) {
     //printk(KERN_DEBUG "h l: %d %d\n", h, l);
     h=24;
     l=24;
+
+    //below is the code for the pn generation for Ap trigger based random mac address generation
+    if (RND_AP) {
+        //l and h are calculated same way for both schemes 
+        // seed is not used at all in the AP trigger scheme for the pn generation
+        //but for AP trigger based random mac address generation we are using the rnd_mac_validity_period as the time period which is extracted from the custom packet
+        t_epoch = (ktime_get_real_seconds()/rnd_mac_validity_period);
+        pn_h = (t_epoch) % (1ULL << h);
+        pn_l = 0;  // Reset PN-L to 0
+
+         // Combine PN-H and PN-L into a 48-bit PN
+        pn = (pn_h << l) | pn_l;
+        return pn;
+
+    }
+
+
+    //below is the code for the pn generation for kernel time period based random mac address generation
     // Calculate PN-H and PN-L
     pn_h = (seed) % (1ULL << h);
     pn_l = 0;  // Reset PN-L to 0
@@ -321,8 +348,8 @@ u64 generate_pn(long long int seed) {
     printk(KERN_DEBUG "Calculated l: %d\n", l);
     printk(KERN_DEBUG "Calculated h: %d\n", h);
     printk(KERN_DEBUG "PN-H: %llu\n", pn_h);
-    printk(KERN_DEBUG "PN-L: %lluu\n", pn_l);
-    printk(KERN_DEBUG "Generated PN: %016llx\n", pn); */
+    printk(KERN_DEBUG "PN-L: %lluu\n", pn_l);*/
+    //printk(KERN_DEBUG "Generated PN: %016llx\n", pn); 
 
     return pn;
 }

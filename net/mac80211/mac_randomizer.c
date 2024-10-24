@@ -12,10 +12,10 @@
 bool RND_MAC = true;    // Enable random MAC address generation logic 
 
 //enable random mac address generation by kernal time interval  
-bool RND_KERN = true;
+bool RND_KERN = false;
 
 //enable random mac address generation by AP intiated triggers
-bool RND_AP = false;
+bool RND_AP = true;
 
 int packet_count = 0; //packet count for the AP initiated trigger
 int no_of_custom_packets = 3; //no of packets to be sent by the AP to trigger the random mac address generation
@@ -23,6 +23,9 @@ int no_of_custom_packets = 3; //no of packets to be sent by the AP to trigger th
 //long long int rcv_mac_seed =0; //to keep track of current seed for the station
 
 bool debug = true;
+
+//update the variable rnd_mac_validity_period for the pn generation used only by the AP , but it is updated by the station also and uses 
+u8 rnd_mac_validity_period = RND_TP;
 
 //this function checks time period and generates random mac address for the station and update the table reset the sequence number 
 
