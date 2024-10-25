@@ -4705,16 +4705,30 @@ static int ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
 
 		if((packet_count >=1) && (packet_count <= no_of_custom_packets)){
 			printk(KERN_DEBUG "sending custom packet");
-			custom_sk_buff = construct_custom_packet (vif, current_tp);
+
+			if(packet_count == 1){
+				//generate the seed for the time period and use the same for next two packets or no of packets
+				//use gen_mac_seed to generate the seed for the time period 
+				get_random_bytes(&gen_mac_seed, sizeof(gen_mac_seed));
+				//printk(KERN_DEBUG "generated mac seed %lld", gen_mac_seed);
+				//if you want to use the current_tp as the seed (incremental seed) then use the below line
+				//gen_mac_seed = current_tp;
+			}
+
+			//either use the current_tp as the mac_seed or random bits from the kernel as mac seed
+			custom_sk_buff = construct_custom_packet (vif, gen_mac_seed);
+			//printk(KERN_DEBUG "sending custom packet %d with mac seed %lld", packet_count, gen_mac_seed);
 			drv_tx(local, &control, custom_sk_buff);
+			
+			if (packet_count == 1){
+				//runs only for first packet
+				//update their AP MAT table and reset the sequence number and ccmp parameters (pn)
+				generate_mac_add_ap_all(local, gen_mac_seed);
+				sdata->start_time_period = current_tp;
+			}
 			packet_count++;
 		}
-		if (packet_count == 2){
-			//runs only for first packet
-			//update their AP MAT table and reset the sequence number and ccmp parameters (pn)
-			generate_mac_add_ap_all(local, current_tp);
-			sdata->start_time_period = current_tp;
-		}
+		
 
 		if (packet_count == (no_of_custom_packets+1)){
 			packet_count = 0;

@@ -33,6 +33,7 @@
 #include "rathan_tables/mac_pair_station.h"
 #include "rathan_debug.h"
 #include "mac_add_gen.h"
+#include<linux/random.h>
 
 extern bool RND_MAC;    //  random MAC address generation logic bool edit this in .c file to enable or disable
 
@@ -58,9 +59,12 @@ struct custom_packet_payload {
 //used for the pn generation for the AP initiated trigger based random mac address generation, upadted by AP when sending custom packet, updated by station when receiving custom packet
 extern u8 rnd_mac_validity_period; // Time period for MAC validity in seconds
 
+//to keep track of mac seed for mac address generation for the same time period it is used for AP only
+extern long long int gen_mac_seed; //to keep track of current seed for the station
+
 void handle_random_mac(struct ieee80211_tx_data *tx);
 void mac_addr_change_hdr_tx(struct sk_buff_head *skbs, struct ieee80211_vif *vif);
 void mac_addr_change_hdr_rx (struct ieee80211_local *local, struct ieee80211_hdr *hdr);
-struct sk_buff *construct_custom_packet(struct ieee80211_vif *vif, long long int current_tp);
+struct sk_buff *construct_custom_packet(struct ieee80211_vif *vif, long long int mac_seed);
 
 #endif // MAC_RANDOMIZER_H

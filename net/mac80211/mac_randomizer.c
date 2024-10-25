@@ -7,15 +7,15 @@
 #include "mac_randomizer.h"
 
 
-//bool RND_MAC = false;
+bool RND_MAC = false;
 
-bool RND_MAC = true;    // Enable random MAC address generation logic 
+//bool RND_MAC = true;    // Enable random MAC address generation logic 
 
 //enable random mac address generation by kernal time interval  
 bool RND_KERN = false;
 
 //enable random mac address generation by AP intiated triggers
-bool RND_AP = true;
+bool RND_AP = false;
 
 int packet_count = 0; //packet count for the AP initiated trigger
 int no_of_custom_packets = 3; //no of packets to be sent by the AP to trigger the random mac address generation
@@ -26,6 +26,7 @@ bool debug = true;
 
 //update the variable rnd_mac_validity_period for the pn generation used only by the AP , but it is updated by the station also and uses 
 u8 rnd_mac_validity_period = RND_TP;
+long long int gen_mac_seed = 0;
 
 //this function checks time period and generates random mac address for the station and update the table reset the sequence number 
 
@@ -420,7 +421,7 @@ void mac_addr_change_hdr_rx (struct ieee80211_local *local, struct ieee80211_hdr
 
 //custom packet building function
 
-struct sk_buff *construct_custom_packet(struct ieee80211_vif *vif, long long int current_tp) {
+struct sk_buff *construct_custom_packet(struct ieee80211_vif *vif, long long int mac_seed) {
 
     struct sk_buff *custom_skb;
     struct ieee80211_hdr *hdr;
@@ -455,7 +456,7 @@ struct sk_buff *construct_custom_packet(struct ieee80211_vif *vif, long long int
 
     // Prepare the payload data
     payload_data.mac_validity_period = RND_TP; //validity period for MAC address in seconds
-    payload_data.mac_generation_seed = current_tp; // Seed for MAC address generation
+    payload_data.mac_generation_seed = mac_seed; // Seed for MAC address generation
     strncpy(payload_data.message, "This is was a extra message to the station", sizeof(payload_data.message) - 1);
     payload_data.message[sizeof(payload_data.message) - 1] = '\0';
 
