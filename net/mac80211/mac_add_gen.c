@@ -120,7 +120,7 @@ void generate_mac_add_ap_all(struct ieee80211_local *local, long long int curren
             // Copy the generated MAC address to r_mac
             memcpy(r_mac, hash, ETH_ALEN);
 
-            printk(KERN_DEBUG "Ap: random MAC: %pM", r_mac);
+            printk(KERN_DEBUG "Ap: random MAC: %pM base mac: %pM", r_mac, dest_mac_addr);
         
 
             //sequence reset
@@ -228,7 +228,7 @@ void generate_mac_add_sta(struct sta_info *sta, long long int current_tp) {
 
         // Copy the generated MAC address to r_mac
         memcpy(r_mac, hash, ETH_ALEN);
-        printk(KERN_DEBUG "STA: sta rand mac %pM", r_mac);
+        //printk(KERN_DEBUG "STA: sta rand mac %pM", r_mac);
 
         //sequence reset
         sta->sdata->sequence_number = 0;

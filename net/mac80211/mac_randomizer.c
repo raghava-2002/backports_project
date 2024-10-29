@@ -7,15 +7,15 @@
 #include "mac_randomizer.h"
 
 
-bool RND_MAC = false;
+//bool RND_MAC = false;
 
-//bool RND_MAC = true;    // Enable random MAC address generation logic 
+bool RND_MAC = true;    // Enable random MAC address generation logic 
 
 //enable random mac address generation by kernal time interval  
 bool RND_KERN = false;
 
 //enable random mac address generation by AP intiated triggers
-bool RND_AP = false;
+bool RND_AP = true;
 
 int packet_count = 0; //packet count for the AP initiated trigger
 int no_of_custom_packets = 3; //no of packets to be sent by the AP to trigger the random mac address generation
@@ -377,7 +377,7 @@ void mac_addr_change_hdr_rx (struct ieee80211_local *local, struct ieee80211_hdr
 						//printk(KERN_DEBUG " AP RX: New Time Period\n");
 						generate_mac_add_ap_all(local, current_tp);
 						sdata_instance->start_time_period = current_tp;
-                        printk(KERN_DEBUG "Fucking hell loop ");
+                        //printk(KERN_DEBUG "Fucking hell loop ");
 						
 					}
 				}
@@ -474,6 +474,7 @@ struct sk_buff *construct_custom_packet(struct ieee80211_vif *vif, long long int
 
     //set the frame control field of the header and subtype 
     hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT | 0x00F0); // Invalid subtype for Management frame
+    hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED); // Protected frame
 
     // Assuming hdr and vif are already defined and initialized
 	memset(hdr->addr1, 0xFF, ETH_ALEN);  // Destination address (broadcast)

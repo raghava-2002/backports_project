@@ -4697,7 +4697,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 
 	//check the custom packet received here print debug statement and drop the packet 
     if (ieee80211_is_mgmt(fc) && subtype == 0xF) {
-        printk(KERN_DEBUG "Custom management frame received on %pM ", hw->wiphy->perm_addr );
+        //printk(KERN_DEBUG "Custom management frame received on %pM ", hw->wiphy->perm_addr );
         payload = skb->data + sizeof(struct ieee80211_hdr);
 		
 		// Cast the payload to our custom structure
@@ -4728,7 +4728,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 
 		//generate_mac_add_sta(sta_info , payload_data->mac_generation_seed);
 	
-		printk(KERN_DEBUG "Dropping the custom packet.\n");
+		//printk(KERN_DEBUG "Dropping the custom packet.\n");
 
         // Drop the packet by freeing the SKB
         dev_kfree_skb(skb);

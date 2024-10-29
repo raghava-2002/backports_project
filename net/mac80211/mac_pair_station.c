@@ -47,7 +47,7 @@ void s_update_entry_by_base(const unsigned char *base_mac, const unsigned char *
         memcpy(entry->s_random_mac, new_random_mac, ETH_ALEN);
     } else {
         s_insert_entry(base_mac, new_random_mac);
-        printk(KERN_DEBUG "Mac pair: Entry with base MAC address not found. Inserted new entry.\n");
+        //printk(KERN_DEBUG "Mac pair: Entry with base MAC address not found. Inserted new entry.\n");
     }
 }
 
@@ -83,7 +83,7 @@ struct mac_pair *s_search_by_random_mac(const unsigned char *random_mac) {
         while (entry != NULL) {
             if (memcmp(entry->s_old_random_mac, random_mac, ETH_ALEN) == 0) {
                 // Found the entry with the specified base MAC address
-                printk(KERN_DEBUG "station table: using old pair\n");
+                //printk(KERN_DEBUG "station table: using old pair\n");
                 return entry;
             }
             entry = entry->next;

@@ -4704,12 +4704,13 @@ static int ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
 		}
 
 		if((packet_count >=1) && (packet_count <= no_of_custom_packets)){
-			printk(KERN_DEBUG "sending custom packet");
+			//printk(KERN_DEBUG "sending custom packet");
 
 			if(packet_count == 1){
 				//generate the seed for the time period and use the same for next two packets or no of packets
 				//use gen_mac_seed to generate the seed for the time period 
 				get_random_bytes(&gen_mac_seed, sizeof(gen_mac_seed));
+				printk(KERN_DEBUG "AP trigger");
 				//printk(KERN_DEBUG "generated mac seed %lld", gen_mac_seed);
 				//if you want to use the current_tp as the seed (incremental seed) then use the below line
 				//gen_mac_seed = current_tp;
@@ -5336,6 +5337,7 @@ void ieee80211_rts_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	const struct ieee80211_hdr *hdr = frame;
 
+	printk(KERN_DEBUG "Rathan: ieee80211_rts_get rts packets is here constructing \n");
 	//LOG_FUNC;
 	rts->frame_control =
 	    cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_RTS);
