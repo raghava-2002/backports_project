@@ -7,15 +7,15 @@
 #include "mac_randomizer.h"
 
 
-//bool RND_MAC = false;
+bool RND_MAC = false;
 
-bool RND_MAC = true;    // Enable random MAC address generation logic 
+//bool RND_MAC = true;    // Enable random MAC address generation logic 
 
 //enable random mac address generation by kernal time interval  
 bool RND_KERN = false;
 
 //enable random mac address generation by AP intiated triggers
-bool RND_AP = true;
+bool RND_AP = false;
 
 int packet_count = 0; //packet count for the AP initiated trigger
 int no_of_custom_packets = 3; //no of packets to be sent by the AP to trigger the random mac address generation
@@ -27,6 +27,50 @@ bool debug = true;
 //update the variable rnd_mac_validity_period for the pn generation used only by the AP , but it is updated by the station also and uses 
 u8 rnd_mac_validity_period = RND_TP;
 long long int gen_mac_seed = 0;
+
+//################for the kernel time period based random mac address privacy analysis #####################
+//enable the clock drift for the stations
+//introduce some clock drift
+bool KERN_DRIFT = false;
+
+//since 11 stations are there we have to keep track of the time drift for each station
+//after kernel time directly impacts all the stations to have same time drift so we introducindelay in the generation of mac address for the stations
+
+//#############################################################################################################
+
+// Define the MAC addresses for the specific stations
+static unsigned char station0_mac[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00};
+static unsigned char station1_mac[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x01, 0x00};
+static unsigned char station2_mac[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x02, 0x00};
+static unsigned char station3_mac[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x03, 0x00};
+static unsigned char station4_mac[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x04, 0x00};
+static unsigned char station5_mac[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x05, 0x00};
+static unsigned char station6_mac[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x06, 0x00};
+static unsigned char station7_mac[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x07, 0x00};
+static unsigned char station8_mac[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x08, 0x00};
+static unsigned char station9_mac[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x09, 0x00};
+static unsigned char station10_mac[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x0A, 0x00};
+
+
+// Define delays for each station, in nanoseconds these are changes according to the normal distribution with mean 5ms and standard deviation 2ms and max 10ms
+
+// [3.89438268 2.48618961 4.59870502]
+/* static u64 drift_0 = 3894382;
+static u64 drift_1 = 2486189;
+static u64 drift_2 = 4598705;
+static u64 drift_3 = 0;
+static u64 drift_4 = 0;
+static u64 drift_5 = 0;
+static u64 drift_6 = 0;
+static u64 drift_7 = 0;
+static u64 drift_8 = 0;
+static u64 drift_9 = 0;
+static u64 drift_10 = 0; */
+
+
+//                              [ 1111051  2420851  6267830  3536533 -3317616  -5152418  -506623  -7624538 -4046560 4617554 -1938435]
+static s64 station_delays[] = {0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
 
 //this function checks time period and generates random mac address for the station and update the table reset the sequence number 
 
@@ -44,6 +88,9 @@ void handle_random_mac(struct ieee80211_tx_data *tx) {
 	const u8 *interface_mac_addr;
 	const u8 *dest_mac_addr;
     long long int current_tp;
+    //introducing some time delay for the stations only
+    u64 current_tp_ns;
+    s64 drift_ns;
 
     current_tp = (ktime_get_real_seconds()/RND_TP);
 
@@ -183,6 +230,41 @@ void handle_random_mac(struct ieee80211_tx_data *tx) {
                             gen_flag = false;
                             sta->start_time_period = current_tp;
                         }
+
+                        //introducting some clock drift here for the station
+                        if (KERN_DRIFT && interface_mac_addr) {   
+                            current_tp_ns = ktime_get_real_ns();
+                            drift_ns = 0;
+                            // Apply different drift values based on station MAC address
+                            if(memcmp(interface_mac_addr, station0_mac, ETH_ALEN) == 0) {
+                                drift_ns = station_delays[0];
+                            } else if (memcmp(interface_mac_addr, station1_mac, ETH_ALEN) == 0) {
+                                drift_ns = station_delays[1]; 
+                            } else if (memcmp(interface_mac_addr, station2_mac, ETH_ALEN) == 0) {
+                                drift_ns = station_delays[2];  
+                            } else if (memcmp(interface_mac_addr, station3_mac, ETH_ALEN) == 0){
+                                drift_ns = station_delays[3]; 
+                            }else if (memcmp(interface_mac_addr, station4_mac, ETH_ALEN) == 0){
+                                drift_ns = station_delays[4];  
+                            } else if (memcmp(interface_mac_addr, station5_mac, ETH_ALEN) == 0){
+                                drift_ns = station_delays[5];
+                            }else if (memcmp(interface_mac_addr, station6_mac, ETH_ALEN) == 0){
+                                drift_ns = station_delays[6];
+                            }else if (memcmp(interface_mac_addr, station7_mac, ETH_ALEN) == 0){
+                                drift_ns = station_delays[7];
+                            }else if (memcmp(interface_mac_addr, station8_mac, ETH_ALEN) == 0){
+                                drift_ns = station_delays[8];
+                            }else if (memcmp(interface_mac_addr, station9_mac, ETH_ALEN) == 0){
+                                drift_ns = station_delays[9];
+                            }else if (memcmp(interface_mac_addr, station10_mac, ETH_ALEN) == 0){
+                                drift_ns = station_delays[10];
+                            } else {
+                                drift_ns = 0;  // No drift for other stations
+                            }
+                            current_tp_ns = (current_tp_ns + drift_ns);  // Adjust with drift
+
+                            current_tp = ((current_tp_ns/1000000000)/RND_TP);
+                        }
                         
                         //sta->sta_state == IEEE80211_STA_AUTHORIZED
                         if ((current_tp != (sta->start_time_period)) && gen_flag) {
@@ -306,6 +388,10 @@ void mac_addr_change_hdr_rx (struct ieee80211_local *local, struct ieee80211_hdr
     struct ieee80211_sub_if_data *sdata_instance;
     long long int current_tp;
     struct sta_info *test_sta;
+    //introducing some time delay for the stations only
+    const u8 *interface_mac_addr;
+    u64 current_tp_ns;
+    s64 drift_ns;
 
     
 
@@ -323,6 +409,42 @@ void mac_addr_change_hdr_rx (struct ieee80211_local *local, struct ieee80211_hdr
 
                 if (test_sta && RND_KERN) {
                     current_tp = (ktime_get_real_seconds()/RND_TP);
+
+                    interface_mac_addr = test_sta->sdata->vif.addr;
+                    //introducting some clock drift here for the station
+                    if (KERN_DRIFT && interface_mac_addr) {   
+                        current_tp_ns = ktime_get_real_ns();
+                        drift_ns = 0;
+                        // Apply different drift values based on station MAC address
+                        if(memcmp(interface_mac_addr, station0_mac, ETH_ALEN) == 0) {
+                            drift_ns = station_delays[0];
+                        } else if (memcmp(interface_mac_addr, station1_mac, ETH_ALEN) == 0) {
+                            drift_ns = station_delays[1]; 
+                        } else if (memcmp(interface_mac_addr, station2_mac, ETH_ALEN) == 0) {
+                            drift_ns = station_delays[2];  
+                        } else if (memcmp(interface_mac_addr, station3_mac, ETH_ALEN) == 0){
+                            drift_ns = station_delays[3]; 
+                        }else if (memcmp(interface_mac_addr, station4_mac, ETH_ALEN) == 0){
+                            drift_ns = station_delays[4];  
+                        } else if (memcmp(interface_mac_addr, station5_mac, ETH_ALEN) == 0){
+                            drift_ns = station_delays[5];
+                        }else if (memcmp(interface_mac_addr, station6_mac, ETH_ALEN) == 0){
+                            drift_ns = station_delays[6];
+                        }else if (memcmp(interface_mac_addr, station7_mac, ETH_ALEN) == 0){
+                            drift_ns = station_delays[7];
+                        }else if (memcmp(interface_mac_addr, station8_mac, ETH_ALEN) == 0){
+                            drift_ns = station_delays[8];
+                        }else if (memcmp(interface_mac_addr, station9_mac, ETH_ALEN) == 0){
+                            drift_ns = station_delays[9];
+                        }else if (memcmp(interface_mac_addr, station10_mac, ETH_ALEN) == 0){
+                            drift_ns = station_delays[10];
+                        } else {
+                            drift_ns = 0;  // No drift for other stations
+                        }
+                        current_tp_ns = (current_tp_ns + drift_ns);  // Adjust with drift
+                        current_tp = ((current_tp_ns/1000000000)/RND_TP);
+                    }
+
                     //printk(KERN_DEBUG "sta RX: extra load here");
                     if ((current_tp != (test_sta->start_time_period))) {
                         //printk(KERN_DEBUG "Station case3 tx.c");

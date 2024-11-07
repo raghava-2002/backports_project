@@ -4952,8 +4952,11 @@ void ieee80211_rx_napi(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
 			WARN_ON_ONCE(1);
 			/* fall through */
 		case RX_ENC_LEGACY:
-			if (WARN_ON(status->rate_idx >= sband->n_bitrates))
+			if (WARN_ON(status->rate_idx >= sband->n_bitrates)){
+				printk(KERN_DEBUG "Debug: rate_idx=%d, n_bitrates=%d, encoding=%d, flag=%d\n", 
+        				status->rate_idx, sband->n_bitrates, status->encoding, status->flag);
 				goto drop;
+			}
 			rate = &sband->bitrates[status->rate_idx];
 		}
 	}
