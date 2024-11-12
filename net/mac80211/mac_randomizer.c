@@ -7,15 +7,15 @@
 #include "mac_randomizer.h"
 
 
-bool RND_MAC = false;
+//bool RND_MAC = false;
 
-//bool RND_MAC = true;    // Enable random MAC address generation logic 
+bool RND_MAC = true;    // Enable random MAC address generation logic 
 
 //enable random mac address generation by kernal time interval  
 bool RND_KERN = false;
 
 //enable random mac address generation by AP intiated triggers
-bool RND_AP = false;
+bool RND_AP = true;
 
 int packet_count = 0; //packet count for the AP initiated trigger
 int no_of_custom_packets = 3; //no of packets to be sent by the AP to trigger the random mac address generation

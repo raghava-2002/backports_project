@@ -1,6 +1,31 @@
 # Backports Project: Enhancing Privacy in Wireless Communications: AP-Initiated Dynamic MAC Re-Randomization
 
-This project implements a MAC address re-randomization scheme within a wireless network to enhance security and privacy. By dynamically managing and translating MAC addresses, this project reduces tracking risks and improves overall privacy in wireless communications.
+## Introduction
+
+This project is part of my MSc thesis work at KTH Royal Institute of Technology, implements a MAC address re-randomization scheme within a wireless network to enhance security and privacy. By dynamically managing and translating MAC addresses, this project reduces tracking risks and improves overall privacy in wireless communications.
+
+## Problem Statement
+
+In modern wireless networks, static MAC addresses can lead to user tracking and privacy breaches. This project addresses these concerns by developing a dynamic MAC address re-randomization protocol, offering enhanced privacy without significant impact on network performance.
+
+## Solution Overview
+
+This protocol introduces time independent MAC address re-randomization within the mac80211 subsystem, achieved through kernel-level modifications. By integrating wmediumd and Mininet-WiFi, the project simulates real-world scenarios, analyzing how time drift between AP and stations affects privacy and network stability.
+
+## Key Features
+
+- **Dynamic MAC Address Randomization**: A robust kernel-level protocol for periodically changing MAC addresses to hinder tracking.
+- **Time-Drift Analysis**: Tests with applied time drift to assess the protocol's effectiveness in linking MAC addresses without compromising privacy.
+- **Network Performance Optimization**: Evaluation of throughput, packet loss, and jitter using iperf3 and Wireshark to ensure minimal performance impact.
+- **Visualization of MAC Transitions**: Graphical representation of MAC address transitions, highlighting privacy gains and potential vulnerabilities.
+
+
+## Technologies Used
+
+- **Linux Kernel (mac80211 subsystem modifications)**
+- **Programming Languages: C, Python**
+- **Simulation and Testing: wmediumd, Mininet-WiFi, iperf3, Wireshark**
+
 
 ## System Requirements
 
@@ -136,3 +161,16 @@ Build and Install Wmediumd:
 ```sh
 sudo make install
 ```
+
+## Results
+
+Checkout the other repository, support folder for this project https://github.com/raghava-2002/Hwsim_test_backport_project
+
+
+## License 
+
+This project is licensed under Rathan Appana
+
+## Contact
+
+For questions or collaboration inquiries, please reach out via rathanappana@gmail.com
